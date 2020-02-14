@@ -4,9 +4,9 @@ package com.modorone.juppeteer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeoutException;
 
 /**
  * author: Shawn
@@ -38,7 +38,7 @@ public class Juppeteer {
         this.mLauncher = new Launcher(projectRoot, preferredRevision, isPuppeteerCore);
     }
 
-    public Browser launch(Options options) throws IOException, InterruptedException {
+    public Browser launch(Options options) throws TimeoutException {
         logger.debug("launch: options={}", options);
         return mLauncher.launch(options);
     }

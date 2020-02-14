@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeoutException;
 
 /**
  * author: Shawn
@@ -20,7 +21,7 @@ public class Launcher {
     public Launcher(String projectRoot, String preferredRevision, boolean isPuppeteerCore) {
     }
 
-    public Browser launch(Options options) {
+    public Browser launch(Options options) throws TimeoutException {
         List<String> chromeArguments = new ArrayList<>();
 
 //        if (!ignoreDefaultArgs)
@@ -43,11 +44,12 @@ public class Launcher {
         browserRunner.run();
         Connection connection = browserRunner.createConnection();
         logger.debug("launch: connection={}", connection);
-        return new Browser();
+        return Browser.create(connection);
     }
 
     public Browser connect(Options options) {
-        return new Browser();
+        String wsEndPoint = "";
+        return new Browser(Connection.create(wsEndPoint));
     }
 
     public String executablePath() {

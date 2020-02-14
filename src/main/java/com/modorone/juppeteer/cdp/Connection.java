@@ -3,7 +3,12 @@ package com.modorone.juppeteer.cdp;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
+import com.modorone.juppeteer.component.Frame;
+import com.modorone.juppeteer.component.Target;
 import com.modorone.juppeteer.exception.WebSocketCreationException;
+import com.modorone.juppeteer.protocol.PageDomain;
+import com.modorone.juppeteer.protocol.RuntimeDomain;
+import com.modorone.juppeteer.protocol.TargetDomain;
 import com.modorone.juppeteer.util.StringUtil;
 import com.modorone.juppeteer.util.SystemUtil;
 import okhttp3.*;
@@ -34,6 +39,10 @@ public class Connection extends WebSocketListener {
     private final Map<Integer, BlockingCell<String>> mContinuationMap = new HashMap<>();
     private AtomicInteger mId = new AtomicInteger(1);
 
+    private final Map<String, CDPSession> mSessions = new HashMap<>();
+
+    private Target.TargetListener mTargetListener;
+    private Frame.FrameListener mFrameListener;
 
     public static Connection create(String url) {
         return new Connection(url);
@@ -47,17 +56,13 @@ public class Connection extends WebSocketListener {
         Request request = new Request.Builder().url(url).build();
         mWebSocket = client.newWebSocket(request, this);
         waitForCreated();
-        SystemUtil.sleep(2000);
-
-        testRPC();
-
+//        SystemUtil.sleep(2000);
+//        testRPC();
     }
 
     private void testRPC() {
         try {
-
             JSONObject reply1 = doCall(new JSONObject() {{
-                put("id", mId);
                 put("method", "Target.getTargets");
             }});
             JSONArray jsonArray = reply1.getJSONObject("result").getJSONArray("targetInfos");
@@ -73,7 +78,6 @@ public class Connection extends WebSocketListener {
 
             String finalTargetId = targetId;
             JSONObject reply2 = doCall(new JSONObject() {{
-                put("id", mId);
                 put("method", "Target.attachToTarget");
                 put("params", new JSONObject() {{
                     put("targetId", finalTargetId);
@@ -84,7 +88,6 @@ public class Connection extends WebSocketListener {
             String sessionId = reply2.getJSONObject("result").getString("sessionId");
             doCall(new JSONObject() {{
                 put("sessionId", sessionId);
-                put("id", mId);
                 put("method", "Page.navigate");
                 put("params", new JSONObject() {{
                     put("url", "https://www.baidu.com");
@@ -105,14 +108,66 @@ public class Connection extends WebSocketListener {
         }
     }
 
-    public String doCall(String text) throws TimeoutException {
+    public void setTargetListener(Target.TargetListener listener) {
+        mTargetListener = listener;
+    }
+
+    public void setFrameListener(Frame.FrameListener listener) {
+        mFrameListener = listener;
+    }
+
+//    public String doCall(String text) throws TimeoutException {
+//        BlockingCell<String> k = new BlockingCell<>();
+//        int id;
+//        synchronized (mContinuationMap) {
+//            id = mId.getAndIncrement();
+//            mContinuationMap.put(id, k);
+//        }
+//        mWebSocket.send(text);
+//        String reply;
+//        try {
+//            reply = k.uninterruptibleGet(5000);
+//        } catch (TimeoutException ex) {
+//            // Avoid potential leak.  This entry is no longer needed by caller.
+//            mContinuationMap.remove(id);
+//            throw ex;
+//        }
+//        logger.debug("doCall: \n\trequest={}\n\tresponse={}", text, reply);
+//        return reply;
+//    }
+
+    public CDPSession getSession(String targetId) {
+        return mSessions.get(targetId);
+    }
+
+    public boolean send(String method, JSONObject params) {
+        return send(new JSONObject() {{
+            put("method", method);
+            put("params", params);
+        }});
+    }
+
+    public boolean send(JSONObject json) {
+        logger.debug("send: request={}", json);
+        return mWebSocket.send(json.toJSONString());
+    }
+
+    public JSONObject doCall(String method, JSONObject params) throws TimeoutException {
+        return doCall(new JSONObject() {{
+            put("method", method);
+            put("params", params);
+        }});
+    }
+
+    public JSONObject doCall(JSONObject json) throws TimeoutException {
         BlockingCell<String> k = new BlockingCell<>();
         int id;
         synchronized (mContinuationMap) {
             id = mId.getAndIncrement();
             mContinuationMap.put(id, k);
         }
-        mWebSocket.send(text);
+        json.put("id", id);
+        mWebSocket.send(json.toJSONString());
         String reply;
         try {
             reply = k.uninterruptibleGet(5000);
@@ -121,12 +176,7 @@ public class Connection extends WebSocketListener {
             mContinuationMap.remove(id);
             throw ex;
         }
-        logger.debug("doCall: \n\trequest={}\n\tresponse={}", text, reply);
-        return reply;
-    }
-
-    public JSONObject doCall(JSONObject json) throws TimeoutException {
-        String reply = doCall(json.toJSONString());
+        logger.debug("doCall: \n\trequest={}\n\tresponse={}", json.toJSONString(), reply);
         return JSON.parseObject(reply);
     }
 
@@ -142,8 +192,23 @@ public class Connection extends WebSocketListener {
         super.onMessage(webSocket, text);
 
         JSONObject json = JSON.parseObject(text);
+        if (StringUtil.equals(TargetDomain.attachedToTargetEvent, json.getString("method"))) {
+            String sessionId = json.getJSONObject("params").getString("sessionId");
+            String type = json.getJSONObject("params").getJSONObject("targetInfo").getString("type");
+            CDPSession session = new CDPSession(this, sessionId, type);
+            mSessions.put(sessionId, session);
+        } else if (StringUtil.equals(TargetDomain.detachedToTargetEvent, json.getString("method"))) {
+            String sessionId = json.getJSONObject("params").getString("sessionId");
+            CDPSession session = mSessions.get(sessionId);
+            if (Objects.nonNull(session)) {
+                mSessions.remove(sessionId);
+                session.close();
+            }
+        }
+
         if (Objects.isNull(json.getInteger("id"))) {      // event
             logger.debug("onMessage: event={}", text);
+            setupListener(json);
         } else {    // rpc reply
             logger.debug("onMessage: reply={}", text);
             synchronized (mContinuationMap) {
@@ -157,6 +222,59 @@ public class Connection extends WebSocketListener {
                     blocker.set(text);
                 }
             }
+        }
+    }
+
+    private void setupListener(JSONObject json) {
+        logger.debug("setupTargetListener: params={}", json.getJSONObject("params"));
+        switch (json.getString("method")) {
+            case TargetDomain.targetCreatedEvent:
+                Target.TargetInfo targetInfo = JSON.parseObject(
+                        json.getJSONObject("params").getJSONObject("targetInfo").toJSONString(),
+                        Target.TargetInfo.class);
+                mTargetListener.onCreate(targetInfo);
+                CDPSession session = createSession(targetInfo.getTargetId());
+                mTargetListener.onAttach(targetInfo, session);
+                break;
+            case TargetDomain.targetChangedEvent:
+                mTargetListener.onChange(JSON.parseObject(
+                        json.getJSONObject("params").getJSONObject("targetInfo").toJSONString(),
+                        Target.TargetInfo.class));
+                break;
+            case TargetDomain.targetDestroyedEvent:
+                mTargetListener.onDestroy(JSON.parseObject(
+                        json.getJSONObject("params").getJSONObject("targetInfo").toJSONString(),
+                        Target.TargetInfo.class));
+                break;
+            case PageDomain.frameAttachedEvent:
+                mFrameListener.onFrameAttached();
+                break;
+            case PageDomain.frameNavigatedEvent:
+                mFrameListener.onFrameNavigated();
+                break;
+            case PageDomain.frameDetachedEvent:
+                mFrameListener.onFrameDetached();
+                break;
+            case PageDomain.frameStoppedLoadingEvent:
+                mFrameListener.onFrameStoppedLoading();
+                break;
+            case PageDomain.navigatedWithinDocumentEvent:
+                mFrameListener.onFrameNavigatedWithinDocument();
+                break;
+            case RuntimeDomain.executionContextCreatedEvent:
+                mFrameListener.onExecutionContextCreated();
+                break;
+            case RuntimeDomain.executionContextDestroyedEvent:
+                mFrameListener.onExecutionContextDestroyed();
+                break;
+            case RuntimeDomain.executionContextsClearedEvent:
+                mFrameListener.onExecutionContextsCleared();
+                break;
+            case PageDomain.lifecycleEventEvent:
+                mFrameListener.onLifecycleEvent();
+                break;
+            default:
+                break;
         }
     }
 
@@ -184,5 +302,25 @@ public class Connection extends WebSocketListener {
         super.onFailure(webSocket, t, response);
         logger.error("onFailure: ", t);
         mIsAlive = false;
+    }
+
+    public CDPSession createSession(String targetId) {
+        try {
+            JSONObject json = doCall(TargetDomain.attachToTargetCommand, new JSONObject() {{
+                put("targetId", targetId);
+            }});
+            return mSessions.get(json.getString("sessionId"));
+        } catch (Exception e) {
+            logger.error("createSession: e=", e);
+        }
+        return null;
+    }
+
+    public void attach() {
+        // create cdp session
+    }
+
+    public void detach() {
+        // remove cdp session
     }
 }
