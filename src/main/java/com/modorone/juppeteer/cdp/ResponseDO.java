@@ -6,5 +6,5 @@ package com.modorone.juppeteer.cdp;
  * desc  :
  * update: Shawn 2/14/20 12:23 AM
  */
-public class Response {
+public class ResponseDO {
 }

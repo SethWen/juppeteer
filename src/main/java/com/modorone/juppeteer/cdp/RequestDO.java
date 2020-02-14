@@ -8,7 +8,7 @@ import java.util.Map;
  * desc  :
  * update: Shawn 2/14/20 12:17 AM
  */
-public class Request {
+public class RequestDO {
 
     private Integer id;
     private String sessionId;

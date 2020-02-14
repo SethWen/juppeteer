@@ -1,7 +1,10 @@
 package com.modorone.juppeteer.cdp;
 
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.modorone.juppeteer.exception.WebSocketCreationException;
+import com.modorone.juppeteer.util.StringUtil;
 import com.modorone.juppeteer.util.SystemUtil;
 import okhttp3.*;
 import okhttp3.Request;
@@ -9,7 +12,12 @@ import okio.ByteString;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * author: Shawn
@@ -22,6 +30,10 @@ public class Connection extends WebSocketListener {
     private static final Logger logger = LoggerFactory.getLogger(Connection.class);
     private WebSocket mWebSocket;
     private boolean mIsAlive;
+
+    private final Map<Integer, BlockingCell<String>> mContinuationMap = new HashMap<>();
+    private AtomicInteger mId = new AtomicInteger(1);
+
 
     public static Connection create(String url) {
         return new Connection(url);
@@ -37,50 +49,50 @@ public class Connection extends WebSocketListener {
         waitForCreated();
         SystemUtil.sleep(2000);
 
-        // Target.setDiscoverTargets', {discover: true}
-        send("{\"id\":123,\"method\":\"Target.setDiscoverTargets\",\"params\":{\"discover\":true}}");
-        SystemUtil.sleep(2000);
-//        send("{\"id\":15,\"method\":\"Target.createTarget\",\"params\":{\"url\":\"https://www.baidu.com\"}}}");
-//        send("{\"id\":16,\"method\":\"Runtime.enable\"}");
-//        send("{\"id\":123,\"method\":\"Page.navigate\",\"params\":{\"url\":\"https://www.baidu.com\",\"age\":8}}");
-//        send(new JSONObject() {{
-//            put("id", 232);
-//            put("method", "Target.createTarget");
-//            put("params", new JSONObject(){{
-//                put("url", "https://www.baidu.com");
-//            }});
-//        }});
+        testRPC();
 
-//        send(new JSONObject() {{
-//            put("id", 233);
-//            put("method", "Storage.getCookies");
-//        }});
-        send(new JSONObject() {{
-            put("id", 1);
-            put("method", "Target.getTargets");
-        }});
-        // 每个 target 对应一个 domain，必须 attach 后 获取 sessionId，才能开始操作该 domain
-        SystemUtil.sleep(2000);
-        String targetId = "";
-        send(new JSONObject() {{
-            put("id", 2);
-            put("method", "Target.attachToTarget");
-            put("params", new JSONObject() {{
-                put("targetId", targetId);
-                put("flatten", true);
-            }});
-        }});
-        SystemUtil.sleep(2000);
-        String sessionId = "";
-        send(new JSONObject() {{
-            put("sessionId", sessionId);
-            put("id", 3);
-            put("method", "Page.navigate");
-            put("params", new JSONObject() {{
-                put("url", "https://www.baidu.com");
-            }});
-        }});
+    }
 
+    private void testRPC() {
+        try {
+
+            JSONObject reply1 = doCall(new JSONObject() {{
+                put("id", mId);
+                put("method", "Target.getTargets");
+            }});
+            JSONArray jsonArray = reply1.getJSONObject("result").getJSONArray("targetInfos");
+            String targetId = "";
+            for (Object o : jsonArray) {
+                JSONObject j = (JSONObject) o;
+                if (StringUtil.equals("page", j.getString("type"))) {
+                    targetId = j.getString("targetId");
+                }
+            }
+//            // 每个 target 对应一个 domain，必须 attach 后 获取 sessionId，才能开始操作该 domain
+            SystemUtil.sleep(2000);
+
+            String finalTargetId = targetId;
+            JSONObject reply2 = doCall(new JSONObject() {{
+                put("id", mId);
+                put("method", "Target.attachToTarget");
+                put("params", new JSONObject() {{
+                    put("targetId", finalTargetId);
+                    put("flatten", true);
+                }});
+            }});
+            SystemUtil.sleep(2000);
+            String sessionId = reply2.getJSONObject("result").getString("sessionId");
+            doCall(new JSONObject() {{
+                put("sessionId", sessionId);
+                put("id", mId);
+                put("method", "Page.navigate");
+                put("params", new JSONObject() {{
+                    put("url", "https://www.baidu.com");
+                }});
+            }});
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     private void waitForCreated() {
@@ -93,12 +105,29 @@ public class Connection extends WebSocketListener {
         }
     }
 
-    public boolean send(String text) {
-        return mWebSocket.send(text);
+    public String doCall(String text) throws TimeoutException {
+        BlockingCell<String> k = new BlockingCell<>();
+        int id;
+        synchronized (mContinuationMap) {
+            id = mId.getAndIncrement();
+            mContinuationMap.put(id, k);
+        }
+        mWebSocket.send(text);
+        String reply;
+        try {
+            reply = k.uninterruptibleGet(5000);
+        } catch (TimeoutException ex) {
+            // Avoid potential leak.  This entry is no longer needed by caller.
+            mContinuationMap.remove(id);
+            throw ex;
+        }
+        logger.debug("doCall: \n\trequest={}\n\tresponse={}", text, reply);
+        return reply;
     }
 
-    public boolean send(JSONObject json) {
-        return mWebSocket.send(json.toJSONString());
+    public JSONObject doCall(JSONObject json) throws TimeoutException {
+        String reply = doCall(json.toJSONString());
+        return JSON.parseObject(reply);
     }
 
     @Override
@@ -111,7 +140,24 @@ public class Connection extends WebSocketListener {
     @Override
     public void onMessage(WebSocket webSocket, String text) {
         super.onMessage(webSocket, text);
-        logger.debug("onMessage: text={}", text);
+
+        JSONObject json = JSON.parseObject(text);
+        if (Objects.isNull(json.getInteger("id"))) {      // event
+            logger.debug("onMessage: event={}", text);
+        } else {    // rpc reply
+            logger.debug("onMessage: reply={}", text);
+            synchronized (mContinuationMap) {
+                Integer id = json.getInteger("id");
+                BlockingCell<String> blocker = mContinuationMap.remove(id);
+                if (blocker == null) {
+                    // Entry should have been removed if request timed out,
+                    // log a warning nevertheless.
+                    logger.warn("No outstanding request for correlation ID {}", id);
+                } else {
+                    blocker.set(text);
+                }
+            }
+        }
     }
 
     @Override

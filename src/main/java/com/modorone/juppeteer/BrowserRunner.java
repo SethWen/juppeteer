@@ -29,7 +29,7 @@ public class BrowserRunner {
         AtomicReference<Exception> exceptionReference = new AtomicReference<>();
         ThreadExecutor.getInstance().execute(() -> {
             try {
-                ProcessBuilder builder = new ProcessBuilllder();
+                ProcessBuilder builder = new ProcessBuilder();
                 String command = Constants.executablePath;
                 builder.command(command, "--remote-debugging-port=9222", "--user-data-dir=/data/debug"); // todo redirect stdio
                 Process process = builder.start();
