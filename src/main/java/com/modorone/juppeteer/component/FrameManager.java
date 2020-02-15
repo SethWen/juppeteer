@@ -2,11 +2,13 @@ package com.modorone.juppeteer.component;
 
 import com.alibaba.fastjson.JSONObject;
 import com.modorone.juppeteer.cdp.CDPSession;
+import com.modorone.juppeteer.exception.IllegalFrameException;
 import com.modorone.juppeteer.protocol.PageDomain;
 import com.modorone.juppeteer.protocol.RuntimeDomain;
+import com.modorone.juppeteer.util.StringUtil;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.lang.management.ManagementFactory;
+import java.util.*;
 import java.util.concurrent.TimeoutException;
 
 /**
@@ -15,8 +17,9 @@ import java.util.concurrent.TimeoutException;
  * desc  :
  * update: Shawn 2/14/20 5:53 PM
  */
-public class FrameManager {
+public class FrameManager implements Frame.FrameListener {
 
+    private Map<String, Frame> mFrames = new HashMap<>();
     private CDPSession mSession;
     private Page mPage;
     private NetWorkManager mNetWorkManager;
@@ -38,6 +41,7 @@ public class FrameManager {
 //        this._client.send('Runtime.enable', {}).then(() => this._ensureIsolatedWorld(UTILITY_WORLD_NAME)),
 //        this._networkManager.initialize(),
 //    ]);
+        mSession.setFrameListener(this);
         mSession.doCall(PageDomain.enableCommand);
         JSONObject json = mSession.doCall(PageDomain.getFrameTreeCommand);
         handleFrameTree(json);
@@ -89,5 +93,69 @@ public class FrameManager {
 //        for (const subframe of frame._children)
 //        collect(subframe);
         return new ArrayList<>();
+    }
+
+    @Override
+    public void onFrameAttached(JSONObject json) {
+//        if (this._frames.has(frameId))
+//            return;
+//        assert(parentFrameId);
+//    const parentFrame = this._frames.get(parentFrameId);
+//    const frame = new Frame(this, this._client, parentFrame, frameId);
+//        this._frames.set(frame._id, frame);
+//        this.emit(Events.FrameManager.FrameAttached, frame);
+        if (mFrames.containsKey(json.getString("frameId"))) return;
+
+        String parentFrameId = json.getString("parentFrameId");
+        if (StringUtil.isEmpty(parentFrameId))
+            throw new IllegalFrameException("parentFrameId is null");
+
+        Frame parentFrame = mFrames.get(parentFrameId);
+        String frameId = json.getString("frameId");
+        Frame frame = new Frame(mSession, this, parentFrame, frameId);
+        mFrames.put(frameId, frame);
+
+        // TODO: 2/14/20
+//        this.emit(Events.FrameManager.FrameAttached, frame);
+    }
+
+    @Override
+    public void onFrameNavigated() {
+
+    }
+
+    @Override
+    public void onFrameNavigatedWithinDocument() {
+
+    }
+
+    @Override
+    public void onFrameDetached() {
+
+    }
+
+    @Override
+    public void onFrameStoppedLoading() {
+
+    }
+
+    @Override
+    public void onExecutionContextCreated() {
+
+    }
+
+    @Override
+    public void onExecutionContextDestroyed() {
+
+    }
+
+    @Override
+    public void onExecutionContextsCleared() {
+
+    }
+
+    @Override
+    public void onLifecycleEvent() {
+
     }
 }

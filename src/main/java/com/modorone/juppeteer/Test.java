@@ -21,7 +21,7 @@ public class Test {
         logger.info("main: ={}", "start...");
         try {
             Browser browser = Juppeteer.getInstance().launch(new Options());
-//            Page page = browser.newPage();
+            Page page = browser.newPage();
         } catch (Exception e) {
             e.printStackTrace();
         }

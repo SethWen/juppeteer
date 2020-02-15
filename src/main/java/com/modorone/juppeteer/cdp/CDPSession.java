@@ -1,6 +1,7 @@
 package com.modorone.juppeteer.cdp;
 
 import com.alibaba.fastjson.JSONObject;
+import com.modorone.juppeteer.component.Frame;
 
 import java.util.concurrent.TimeoutException;
 
@@ -22,6 +23,10 @@ public class CDPSession {
         mConnection = connection;
         mSessionId = sessionId;
         mTargetType = targetType;
+    }
+
+    public void setFrameListener(Frame.FrameListener listener) {
+        mConnection.setFrameListener(listener);
     }
 
     public JSONObject doCall(String method) throws TimeoutException {

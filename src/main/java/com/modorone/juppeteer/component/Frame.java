@@ -1,5 +1,6 @@
 package com.modorone.juppeteer.component;
 
+import com.alibaba.fastjson.JSONObject;
 import com.modorone.juppeteer.cdp.CDPSession;
 
 import java.util.List;
@@ -14,12 +15,15 @@ public class Frame {
 
     private CDPSession mSession;
     private FrameManager mFrameManager;
-    private NetWorkManager mNetWorkManager;
+    private Frame mParentFrame;
+    private String mId;
 
-    public Frame(CDPSession mSession, FrameManager mFrameManager, NetWorkManager mNetWorkManager) {
-        this.mSession = mSession;
-        this.mFrameManager = mFrameManager;
-        this.mNetWorkManager = mNetWorkManager;
+
+    public Frame(CDPSession mSession, FrameManager mFrameManager, Frame parentFrame, String id) {
+        mSession = mSession;
+        mFrameManager = mFrameManager;
+        mParentFrame = parentFrame;
+        mId = id;
     }
 
     public void waitForNavigation(/*option*/) {
@@ -158,14 +162,22 @@ public class Frame {
 //    this._client.on('Runtime.executionContextsCleared', event => this._onExecutionContextsCleared());
 //    this._client.on('Page.lifecycleEvent', event => this._onLifecycleEvent(event));
 
-        void onFrameAttached();
+        void onFrameAttached(JSONObject json);
+
         void onFrameNavigated();
+
         void onFrameNavigatedWithinDocument();
+
         void onFrameDetached();
+
         void onFrameStoppedLoading();
+
         void onExecutionContextCreated();
+
         void onExecutionContextDestroyed();
+
         void onExecutionContextsCleared();
+
         void onLifecycleEvent();
     }
 }

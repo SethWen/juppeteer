@@ -82,7 +82,7 @@ public class Browser {
             put("url", "about:blank");
             put("browserContextId", contextId);
         }});
-        String targetId = json.getString("targetId");
+        String targetId = json.getJSONObject("result").getString("targetId");
         Page page = mTargets.get(targetId).newPage();
         return page;
     }

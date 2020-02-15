@@ -31,7 +31,7 @@ public class BrowserRunner {
             try {
                 ProcessBuilder builder = new ProcessBuilder();
                 String command = Constants.executablePath;
-                builder.command(command, "--remote-debugging-port=9222", "--user-data-dir=/data/debug", "--headless"); // todo redirect stdio
+                builder.command(command, "--remote-debugging-port=9222", "--user-data-dir=/data/debug"); // todo redirect stdio
                 Process process = builder.start();
                 Scanner scanner = new Scanner(process.getErrorStream());
                 while (scanner.hasNext()) {
