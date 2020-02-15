@@ -6,7 +6,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.TimeoutException;
-import java.util.function.Function;
+import java.util.function.Supplier;
 
 /**
  * author: Shawn
@@ -19,22 +19,22 @@ public class Target {
     private static final Logger logger = LoggerFactory.getLogger(Target.class);
 
     private TargetInfo mTargetInfo;
-    private  Function<String, CDPSession> mSessionFactory;
+    private  Supplier<CDPSession> mSessionSupplier;
 
-    public static Target create(TargetInfo targetInfo, Function<String, CDPSession> sessionFactory) {
-        return new Target(targetInfo, sessionFactory);
+    public static Target create(TargetInfo targetInfo, Supplier<CDPSession> sessionSupplier) {
+        return new Target(targetInfo, sessionSupplier);
     }
 
-    private Target(TargetInfo targetInfo, Function<String, CDPSession> sessionFactory) {
+    private Target(TargetInfo targetInfo, Supplier<CDPSession> sessionSupplier) {
         mTargetInfo = targetInfo;
-        mSessionFactory = sessionFactory;
+        mSessionSupplier = sessionSupplier;
     }
 
     public Page newPage() throws TimeoutException {
         Page page = null;
         if (StringUtil.equals("page", mTargetInfo.getType())
                 || StringUtil.equals("background_page", mTargetInfo.getType())) {
-            CDPSession apply = mSessionFactory.apply(mTargetInfo.getTargetId());
+            CDPSession apply = mSessionSupplier.get();
             logger.debug("newPage: apply={}", apply);
             page = Page.create(apply);
         }
@@ -43,7 +43,7 @@ public class Target {
 
 
     public interface TargetListener {
-        void onCreate(TargetInfo targetInfo, Function<String, CDPSession> sessionFactory);
+        void onCreate(TargetInfo targetInfo, Supplier<CDPSession> sessionSupplier);
 
         void onChange(TargetInfo targetInfo);
 

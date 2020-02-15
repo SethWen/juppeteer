@@ -11,9 +11,8 @@ import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeoutException;
-import java.util.function.Function;
+import java.util.function.Supplier;
 
 /**
  * author: Shawn
@@ -31,8 +30,8 @@ public class Browser {
     private final Target.TargetListener targetListener = new Target.TargetListener() {
 
         @Override
-        public void onCreate(Target.TargetInfo targetInfo, Function<String, CDPSession> sessionFactory) {
-            Target target = Target.create(targetInfo, sessionFactory);
+        public void onCreate(Target.TargetInfo targetInfo, Supplier<CDPSession> sessionSupplier) {
+            Target target = Target.create(targetInfo, sessionSupplier);
             mTargets.put(targetInfo.getTargetId(), target);
             logger.debug("onCreate: targets={}", mTargets);
         }

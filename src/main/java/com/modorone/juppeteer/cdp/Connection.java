@@ -23,7 +23,7 @@ import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Function;
+import java.util.function.Supplier;
 
 /**
  * author: Shawn
@@ -238,8 +238,8 @@ public class Connection extends WebSocketListener {
                 Target.TargetInfo targetInfo = JSON.parseObject(
                         json.getJSONObject("params").getJSONObject("targetInfo").toJSONString(),
                         Target.TargetInfo.class);
-                Function<String, CDPSession> sessionFactory = this::createSession;
-                mTargetListener.onCreate(targetInfo, sessionFactory);
+                Supplier<CDPSession> sessionSupplier = () -> createSession(targetInfo.getTargetId());
+                mTargetListener.onCreate(targetInfo, sessionSupplier);
                 break;
             case TargetDomain.targetChangedEvent:
                 mTargetListener.onChange(JSON.parseObject(
