@@ -54,7 +54,7 @@ public class Page {
         mSession.doCall(LogDomain.enableCommand, new JSONObject());
         try {
             mSession.doCall(PageDomain.setInterceptFileChooserDialogCommand, new JSONObject() {{
-                put("enable", true);
+                put("enabled", true);
             }});
         } catch (Exception e) {
             // TODO: 2/14/20

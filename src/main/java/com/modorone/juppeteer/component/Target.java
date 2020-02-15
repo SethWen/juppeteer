@@ -2,8 +2,11 @@ package com.modorone.juppeteer.component;
 
 import com.modorone.juppeteer.cdp.CDPSession;
 import com.modorone.juppeteer.util.StringUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.TimeoutException;
+import java.util.function.Function;
 
 /**
  * author: Shawn
@@ -13,36 +16,36 @@ import java.util.concurrent.TimeoutException;
  */
 public class Target {
 
-    private TargetInfo mTargetInfo;
-    private CDPSession mSession;
+    private static final Logger logger = LoggerFactory.getLogger(Target.class);
 
-    public static Target create(TargetInfo targetInfo, CDPSession session) {
-        return new Target(targetInfo, session);
+    private TargetInfo mTargetInfo;
+    private  Function<String, CDPSession> mSessionFactory;
+
+    public static Target create(TargetInfo targetInfo, Function<String, CDPSession> sessionFactory) {
+        return new Target(targetInfo, sessionFactory);
     }
 
-    private Target(TargetInfo targetInfo, CDPSession session) {
+    private Target(TargetInfo targetInfo, Function<String, CDPSession> sessionFactory) {
         mTargetInfo = targetInfo;
-        mSession = session;
+        mSessionFactory = sessionFactory;
     }
 
     public Page newPage() throws TimeoutException {
         Page page = null;
         if (StringUtil.equals("page", mTargetInfo.getType())
                 || StringUtil.equals("background_page", mTargetInfo.getType())) {
-            page = Page.create(mSession);
+            CDPSession apply = mSessionFactory.apply(mTargetInfo.getTargetId());
+            logger.debug("newPage: apply={}", apply);
+            page = Page.create(apply);
         }
         return page;
     }
 
 
     public interface TargetListener {
-        void onCreate(TargetInfo targetInfo);
-
-        void onAttach(TargetInfo targetInfo, CDPSession session);
+        void onCreate(TargetInfo targetInfo, Function<String, CDPSession> sessionFactory);
 
         void onChange(TargetInfo targetInfo);
-
-        void onDetach(TargetInfo targetInfo, CDPSession session);
 
         void onDestroy(TargetInfo targetInfo);
     }

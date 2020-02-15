@@ -21,9 +21,9 @@ public class NetWorkManager {
     private boolean mIgnoreHTTPSErrors;
 
     public NetWorkManager(CDPSession session, FrameManager frameManager, boolean ignoreHTTPSErrors) {
-        session = session;
-        frameManager = frameManager;
-        ignoreHTTPSErrors = ignoreHTTPSErrors;
+        mSession = session;
+        mFrameManager = frameManager;
+        mIgnoreHTTPSErrors = ignoreHTTPSErrors;
     }
 
     public void init() throws TimeoutException {

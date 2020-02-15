@@ -11,7 +11,6 @@ import com.modorone.juppeteer.protocol.RuntimeDomain;
 import com.modorone.juppeteer.protocol.TargetDomain;
 import com.modorone.juppeteer.util.StringUtil;
 import com.modorone.juppeteer.util.SystemUtil;
-import com.modorone.juppeteer.util.ThreadExecutor;
 import okhttp3.*;
 import okhttp3.Request;
 import okio.ByteString;
@@ -21,10 +20,10 @@ import org.slf4j.LoggerFactory;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Function;
 
 /**
  * author: Shawn
@@ -179,8 +178,12 @@ public class Connection extends WebSocketListener {
             mContinuationMap.remove(id);
             throw ex;
         }
+        JSONObject jsonReply = JSON.parseObject(reply);
+        if (Objects.nonNull(jsonReply.getJSONObject("error"))) {
+            logger.warn("doCall: error occurs!!!");
+        }
         logger.debug("doCall: \n\trequest={}\n\tresponse={}", json.toJSONString(), reply);
-        return JSON.parseObject(reply);
+        return jsonReply;
     }
 
     @Override
@@ -210,7 +213,7 @@ public class Connection extends WebSocketListener {
 
         if (Objects.isNull(json.getInteger("id"))) {      // event
             logger.debug("onMessage: event={}", text);
-            ThreadExecutor.getInstance().execute(() -> setupListener(json)); // exec async, or which may cause blocked
+            triggerListener(json);
         } else {    // rpc reply
             logger.debug("onMessage: reply={}", text);
             synchronized (mContinuationMap) {
@@ -227,8 +230,7 @@ public class Connection extends WebSocketListener {
         }
     }
 
-    private void setupListener(JSONObject json) {
-        logger.debug("setupListener: params={}", json.getJSONObject("params"));
+    private void triggerListener(JSONObject json) {
         if (Objects.isNull(json.getString("method"))) return;
 
         switch (json.getString("method")) {
@@ -236,9 +238,8 @@ public class Connection extends WebSocketListener {
                 Target.TargetInfo targetInfo = JSON.parseObject(
                         json.getJSONObject("params").getJSONObject("targetInfo").toJSONString(),
                         Target.TargetInfo.class);
-                mTargetListener.onCreate(targetInfo);
-                CDPSession session = createSession(targetInfo.getTargetId());
-                mTargetListener.onAttach(targetInfo, session);
+                Function<String, CDPSession> sessionFactory = this::createSession;
+                mTargetListener.onCreate(targetInfo, sessionFactory);
                 break;
             case TargetDomain.targetChangedEvent:
                 mTargetListener.onChange(JSON.parseObject(
@@ -314,7 +315,7 @@ public class Connection extends WebSocketListener {
                 put("targetId", targetId);
                 put("flatten", true);
             }});
-            return mSessions.get(json.getString("sessionId"));
+            return mSessions.get(json.getJSONObject("result").getString("sessionId"));
         } catch (Exception e) {
             logger.error("createSession: e=", e);
         }
