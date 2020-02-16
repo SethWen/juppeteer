@@ -266,10 +266,10 @@ public class Connection extends WebSocketListener {
                 mTargetListener.onDestroy(json.getJSONObject("params").getString("targetId"));
                 break;
             case PageDomain.frameAttachedEvent:
-                mFrameListener.onFrameAttached(json.getJSONObject("params"));
+                mFrameListener.onFrameAttached(null);
                 break;
             case PageDomain.frameNavigatedEvent:
-                mFrameListener.onFrameNavigated();
+                mFrameListener.onFrameNavigated(null);
                 break;
             case PageDomain.frameDetachedEvent:
                 mFrameListener.onFrameDetached();

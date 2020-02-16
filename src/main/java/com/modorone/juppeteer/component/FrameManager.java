@@ -6,8 +6,9 @@ import com.modorone.juppeteer.exception.IllegalFrameException;
 import com.modorone.juppeteer.protocol.PageDomain;
 import com.modorone.juppeteer.protocol.RuntimeDomain;
 import com.modorone.juppeteer.util.StringUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.lang.management.ManagementFactory;
 import java.util.*;
 import java.util.concurrent.TimeoutException;
 
@@ -19,10 +20,13 @@ import java.util.concurrent.TimeoutException;
  */
 public class FrameManager implements Frame.FrameListener {
 
+    private static final Logger logger = LoggerFactory.getLogger(FrameManager.class);
+
     private Map<String, Frame> mFrames = new HashMap<>();
     private CDPSession mSession;
     private Page mPage;
     private NetWorkManager mNetWorkManager;
+    private Frame mMainFrame;
 
     public FrameManager(CDPSession session, Page page) {
         mSession = session;
@@ -44,7 +48,7 @@ public class FrameManager implements Frame.FrameListener {
         mSession.setFrameListener(this);
         mSession.doCall(PageDomain.enableCommand);
         JSONObject json = mSession.doCall(PageDomain.getFrameTreeCommand);
-        handleFrameTree(json);
+        handleFrameTree(json.getJSONObject("result").getJSONObject("frameTree"));
         mSession.doCall(PageDomain.setLifecycleEventsEnabledCommand, new JSONObject() {{
             put("enabled", true);
         }});
@@ -53,8 +57,19 @@ public class FrameManager implements Frame.FrameListener {
         mNetWorkManager.init();
     }
 
-    private void handleFrameTree(JSONObject json) {
-        // TODO: 2/14/20
+    private void handleFrameTree(JSONObject frameTree) {
+        logger.debug("handleFrameTree: frameTree={}", frameTree);
+        Frame.FrameInfo frameInfo = frameTree.getJSONObject("frame").toJavaObject(Frame.FrameInfo.class);
+        if (!StringUtil.isEmpty(frameInfo.getParentId())) {
+            onFrameAttached(frameInfo);
+        }
+        onFrameNavigated(frameInfo);
+
+        if (Objects.isNull(frameTree.getJSONArray("childFrames"))) return;
+
+        for (Object childFrame : frameTree.getJSONArray("childFrames")) {
+            handleFrameTree((JSONObject) childFrame);
+        }
     }
 
     private void ensureIsolatedWorld(String name) {
@@ -72,14 +87,13 @@ public class FrameManager implements Frame.FrameListener {
 //    }).catch(debugError))); // frames might be removed before we send this
     }
 
-    public Frame frame(String frameId) {
-//        return this._frames.get(frameId);
-        return null;
+
+    public Frame getMainFrame() {
+        return mMainFrame;
     }
 
-    public Frame mainFrame() {
-//        return this._mainFrame;
-        return null;
+    public Frame getFrame(String frameId) {
+        return mFrames.get(frameId);
     }
 
     public List<Frame> frames() {
@@ -96,7 +110,7 @@ public class FrameManager implements Frame.FrameListener {
     }
 
     @Override
-    public void onFrameAttached(JSONObject json) {
+    public void onFrameAttached(Frame.FrameInfo frameInfo) {
 //        if (this._frames.has(frameId))
 //            return;
 //        assert(parentFrameId);
@@ -104,24 +118,60 @@ public class FrameManager implements Frame.FrameListener {
 //    const frame = new Frame(this, this._client, parentFrame, frameId);
 //        this._frames.set(frame._id, frame);
 //        this.emit(Events.FrameManager.FrameAttached, frame);
-        if (mFrames.containsKey(json.getString("frameId"))) return;
 
-        String parentFrameId = json.getString("parentFrameId");
-        if (StringUtil.isEmpty(parentFrameId))
+        if (mFrames.containsKey(frameInfo.getId())) return;
+
+        if (StringUtil.isEmpty(frameInfo.getParentId()))
             throw new IllegalFrameException("parentFrameId is null");
 
-        Frame parentFrame = mFrames.get(parentFrameId);
-        String frameId = json.getString("frameId");
-        Frame frame = new Frame(mSession, this, parentFrame, frameId);
-        mFrames.put(frameId, frame);
+        Frame frame = new Frame(mSession, this, frameInfo);
+        mFrames.put(frameInfo.getId(), frame);
 
         // TODO: 2/14/20
 //        this.emit(Events.FrameManager.FrameAttached, frame);
     }
 
     @Override
-    public void onFrameNavigated() {
+    public void onFrameNavigated(Frame.FrameInfo frameInfo) {
+        logger.debug("onFrameNavigated: frameInfo={}", frameInfo);
+        boolean isMainFrame = StringUtil.isEmpty(frameInfo.getParentId());
+        Frame frame = isMainFrame ? getMainFrame() : mFrames.get(frameInfo.getId());
+        if (!isMainFrame && Objects.isNull(frame)) {
+            throw new IllegalFrameException("We either navigate top level or have old version of the navigated frame");
+        }
 
+        // Detach all child frames first.
+        if (Objects.nonNull(frame)) {
+            for (Frame childFrame : frame.getChildFrames()) {
+                removeFramesRecursively(childFrame);
+            }
+        }
+
+        // Update or create main frame.
+        if (isMainFrame) {
+            if (Objects.nonNull(frame)) {
+                // Update frame id to retain frame identity on cross-process navigation.
+                mFrames.remove(frame.getFrameInfo().getId());
+                frame.setFrameInfo(frameInfo);
+            } else {
+                // Initial main frame navigation.
+                frame = new Frame(mSession, this, frameInfo);
+            }
+            mFrames.put(frameInfo.getId(), frame);
+            mMainFrame = frame;
+        }
+        // TODO: 2/16/20 listener
+//        this.emit(Events.FrameManager.FrameNavigated, frame);
+    }
+
+    private void removeFramesRecursively(Frame frame) {
+        for (Frame childFrame : frame.getChildFrames()) {
+            removeFramesRecursively(childFrame);
+        }
+        frame.detach();
+        mFrames.remove(frame.getFrameInfo().getId());
+        // TODO: 2/16/20 listener
+//        this.emit(Events.FrameManager.FrameDetached, frame);
     }
 
     @Override

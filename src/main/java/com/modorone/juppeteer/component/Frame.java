@@ -1,9 +1,11 @@
 package com.modorone.juppeteer.component;
 
-import com.alibaba.fastjson.JSONObject;
+import com.alibaba.fastjson.annotation.JSONField;
 import com.modorone.juppeteer.cdp.CDPSession;
 
-import java.util.List;
+import java.util.HashSet;
+import java.util.Objects;
+import java.util.Set;
 
 /**
  * author: Shawn
@@ -15,15 +17,35 @@ public class Frame {
 
     private CDPSession mSession;
     private FrameManager mFrameManager;
-    private Frame mParentFrame;
-    private String mId;
+    private Set<Frame> mChildFrames = new HashSet<>();
+    private FrameInfo mFrameInfo;
 
 
-    public Frame(CDPSession mSession, FrameManager mFrameManager, Frame parentFrame, String id) {
-        mSession = mSession;
-        mFrameManager = mFrameManager;
-        mParentFrame = parentFrame;
-        mId = id;
+    public Frame(CDPSession session, FrameManager frameManager, FrameInfo frameInfo) {
+        mSession = session;
+        mFrameManager = frameManager;
+        mFrameInfo = frameInfo;
+
+        Frame parentFrame = getParentFrame();
+        if (Objects.nonNull(parentFrame)) {
+            getParentFrame().addChildFrame(this);
+        }
+    }
+
+    public FrameInfo getFrameInfo() {
+        return mFrameInfo;
+    }
+
+    public void setFrameInfo(FrameInfo frameInfo) {
+        mFrameInfo = frameInfo;
+    }
+
+    public void addChildFrame(Frame frame) {
+        mChildFrames.add(frame);
+    }
+
+    public void removeChildFrame(Frame frame) {
+        mChildFrames.remove(frame);
     }
 
     public void waitForNavigation(/*option*/) {
@@ -51,11 +73,17 @@ public class Frame {
     public void hover(/*selector*/) {
     }
 
-    private void detach() {
-//        this._parentFrame._children.delete(this);
-//        this._parentFrame = null;
-//        this._detached = true;
-//        this._mainWorld._detach();
+    public void detach() {
+//         this._detached = true;
+//    this._mainWorld._detach();
+//    this._secondaryWorld._detach();
+//    if (this._parentFrame)
+//      this._parentFrame._childFrames.delete(this);
+//    this._parentFrame = null;
+        // TODO: 2/16/20 other logic
+        if (Objects.nonNull(getParentFrame())) {
+            getParentFrame().removeChildFrame(this);
+        }
     }
 
     private void navigated(/*url, name, navigationId*/) {
@@ -139,16 +167,113 @@ public class Frame {
         return false;
     }
 
-    public List<Frame> getChildFrames() {
-        return null;
+    public Set<Frame> getChildFrames() {
+        return mChildFrames;
     }
 
     public Frame getParentFrame() {
-        return null;
+        return mFrameManager.getFrame(mFrameInfo.getParentId());
     }
 
     public String getUrl() {
         return "";
+    }
+
+    public static class FrameInfo {
+
+        /**
+         * securityOrigin : chrome-search://most-visited
+         * loaderId : 572BDFDF2604EFE662C0BE4E4F68F496
+         * name : custom-links-edit
+         * id : 928ADFF8EE2A1010693140D686E27B6C
+         * mimeType : text/html
+         * parentId : 16EB95E8F0EE66874D98EFD7DF315C51
+         * url : chrome-search://most-visited/edit.html?addTitle=Add%20shortcut&editTitle=Edit%20shortcut&nameField=Name&urlField=URL&linkRemove=Remove&linkCancel=Cancel&linkDone=Done&invalidUrl=Type%20a%20valid%20URL
+         */
+
+        @JSONField(name = "securityOrigin")
+        private String securityOrigin;
+        @JSONField(name = "loaderId")
+        private String loaderId;
+        @JSONField(name = "name")
+        private String name;
+        @JSONField(name = "id")
+        private String id;
+        @JSONField(name = "mimeType")
+        private String mimeType;
+        @JSONField(name = "parentId")
+        private String parentId;
+        @JSONField(name = "url")
+        private String url;
+
+        public String getSecurityOrigin() {
+            return securityOrigin;
+        }
+
+        public void setSecurityOrigin(String securityOrigin) {
+            this.securityOrigin = securityOrigin;
+        }
+
+        public String getLoaderId() {
+            return loaderId;
+        }
+
+        public void setLoaderId(String loaderId) {
+            this.loaderId = loaderId;
+        }
+
+        public String getName() {
+            return name;
+        }
+
+        public void setName(String name) {
+            this.name = name;
+        }
+
+        public String getId() {
+            return id;
+        }
+
+        public void setId(String id) {
+            this.id = id;
+        }
+
+        public String getMimeType() {
+            return mimeType;
+        }
+
+        public void setMimeType(String mimeType) {
+            this.mimeType = mimeType;
+        }
+
+        public String getParentId() {
+            return parentId;
+        }
+
+        public void setParentId(String parentId) {
+            this.parentId = parentId;
+        }
+
+        public String getUrl() {
+            return url;
+        }
+
+        public void setUrl(String url) {
+            this.url = url;
+        }
+
+        @Override
+        public String toString() {
+            return "FrameInfo{" +
+                    "securityOrigin='" + securityOrigin + '\'' +
+                    ", loaderId='" + loaderId + '\'' +
+                    ", name='" + name + '\'' +
+                    ", id='" + id + '\'' +
+                    ", mimeType='" + mimeType + '\'' +
+                    ", parentId='" + parentId + '\'' +
+                    ", url='" + url + '\'' +
+                    '}';
+        }
     }
 
     public interface FrameListener {
@@ -162,9 +287,9 @@ public class Frame {
 //    this._client.on('Runtime.executionContextsCleared', event => this._onExecutionContextsCleared());
 //    this._client.on('Page.lifecycleEvent', event => this._onLifecycleEvent(event));
 
-        void onFrameAttached(JSONObject json);
+        void onFrameAttached(FrameInfo frameInfo);
 
-        void onFrameNavigated();
+        void onFrameNavigated(FrameInfo frameInfo);
 
         void onFrameNavigatedWithinDocument();
 
