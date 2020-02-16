@@ -35,6 +35,7 @@ public class Connection extends WebSocketListener {
 
     private static final Logger logger = LoggerFactory.getLogger(Connection.class);
     private WebSocket mWebSocket;
+    private String mUrl;
     private boolean mIsAlive;
 
     private final Map<Integer, BlockingCell<String>> mContinuationMap = new HashMap<>();
@@ -50,6 +51,7 @@ public class Connection extends WebSocketListener {
     }
 
     private Connection(String url) {
+        mUrl = url;
         OkHttpClient client = new OkHttpClient.Builder()
                 .connectTimeout(5, TimeUnit.SECONDS)
                 .pingInterval(Integer.MAX_VALUE, TimeUnit.MICROSECONDS) // 禁用 ping/pong, 因为服务端未实现
@@ -59,6 +61,10 @@ public class Connection extends WebSocketListener {
         waitForCreated();
 //        SystemUtil.sleep(2000);
 //        testRPC();
+    }
+
+    public String getUrl() {
+        return mUrl;
     }
 
     private void testRPC() {
@@ -97,6 +103,10 @@ public class Connection extends WebSocketListener {
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    public boolean isAlive() {
+        return mIsAlive;
     }
 
     private void waitForCreated() {
@@ -151,6 +161,12 @@ public class Connection extends WebSocketListener {
     public boolean send(JSONObject json) {
         logger.debug("send: request={}", json);
         return mWebSocket.send(json.toJSONString());
+    }
+
+    public JSONObject doCall(String method) throws TimeoutException {
+        return doCall(new JSONObject() {{
+            put("method", method);
+        }});
     }
 
     public JSONObject doCall(String method, JSONObject params) throws TimeoutException {
@@ -247,9 +263,7 @@ public class Connection extends WebSocketListener {
                         Target.TargetInfo.class));
                 break;
             case TargetDomain.targetDestroyedEvent:
-                mTargetListener.onDestroy(JSON.parseObject(
-                        json.getJSONObject("params").getJSONObject("targetInfo").toJSONString(),
-                        Target.TargetInfo.class));
+                mTargetListener.onDestroy(json.getJSONObject("params").getString("targetId"));
                 break;
             case PageDomain.frameAttachedEvent:
                 mFrameListener.onFrameAttached(json.getJSONObject("params"));
@@ -305,8 +319,8 @@ public class Connection extends WebSocketListener {
     @Override
     public void onFailure(WebSocket webSocket, Throwable t, Response response) {
         super.onFailure(webSocket, t, response);
-        logger.error("onFailure: ", t);
-        mIsAlive = false;
+//        logger.error("onFailure: ", t);
+//        mIsAlive = false;
     }
 
     public CDPSession createSession(String targetId) {
@@ -320,6 +334,16 @@ public class Connection extends WebSocketListener {
             logger.error("createSession: e=", e);
         }
         return null;
+    }
+
+    public void close() {
+//        mWebSocket.close(1000, "terminate actively");
+        mWebSocket.cancel();
+        mContinuationMap.clear();
+        mSessions.clear();
+        mTargetListener = null;
+        mFrameListener = null;
+        mIsAlive = false;
     }
 
     public void attach() {

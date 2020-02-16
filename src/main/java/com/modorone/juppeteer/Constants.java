@@ -8,6 +8,8 @@ package com.modorone.juppeteer;
  */
 public class Constants {
 
+    public static final long INFINITY = -1;
+
 //    public static final String executablePath = "/home/shawn/WorkSpace/xinde/marcelo/node_modules/playwright-core/.local-chromium/linux-733125/chrome-linux/chrome";
     public static final String executablePath = "/home/shawn/WorkSpace/xinde/marcelo/node_modules/puppeteer/.local-chromium/linux-722234/chrome-linux/chrome";
 

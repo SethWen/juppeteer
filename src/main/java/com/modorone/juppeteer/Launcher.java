@@ -44,12 +44,13 @@ public class Launcher {
         browserRunner.run();
         Connection connection = browserRunner.createConnection();
         logger.debug("launch: connection={}", connection);
-        return Browser.create(connection);
+        return Browser.create(browserRunner.getProcess(), connection);
     }
 
     public Browser connect(Options options) {
         String wsEndPoint = "";
-        return new Browser(Connection.create(wsEndPoint));
+        // TODO: 2/16/20 封装一个远程 process
+        return new Browser(null, Connection.create(wsEndPoint));
     }
 
     public String executablePath() {

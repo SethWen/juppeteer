@@ -19,7 +19,7 @@ public class Target {
     private static final Logger logger = LoggerFactory.getLogger(Target.class);
 
     private TargetInfo mTargetInfo;
-    private  Supplier<CDPSession> mSessionSupplier;
+    private Supplier<CDPSession> mSessionSupplier;
 
     public static Target create(TargetInfo targetInfo, Supplier<CDPSession> sessionSupplier) {
         return new Target(targetInfo, sessionSupplier);
@@ -30,7 +30,11 @@ public class Target {
         mSessionSupplier = sessionSupplier;
     }
 
-    public Page newPage() throws TimeoutException {
+    private void init() {
+        // TODO: 2/16/20 涉及到 openerId，暂时没发现该字段，暂时不实现
+    }
+
+    public Page getPage() throws TimeoutException {
         Page page = null;
         if (StringUtil.equals("page", mTargetInfo.getType())
                 || StringUtil.equals("background_page", mTargetInfo.getType())) {
@@ -41,13 +45,20 @@ public class Target {
         return page;
     }
 
+    public void setTargetInfo(TargetInfo targetInfo) {
+        mTargetInfo = targetInfo;
+    }
+
+    public TargetInfo getTargetInfo() {
+        return mTargetInfo;
+    }
 
     public interface TargetListener {
         void onCreate(TargetInfo targetInfo, Supplier<CDPSession> sessionSupplier);
 
         void onChange(TargetInfo targetInfo);
 
-        void onDestroy(TargetInfo targetInfo);
+        void onDestroy(String targetId);
     }
 
     public static class TargetInfo {

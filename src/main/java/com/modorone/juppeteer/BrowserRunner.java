@@ -24,6 +24,7 @@ public class BrowserRunner {
 
     private static final Logger logger = LoggerFactory.getLogger(BrowserRunner.class);
     private String mWsEndPoint;
+    private Process mProcess;
 
     public void run() throws BrowserCreationException {
         AtomicReference<Exception> exceptionReference = new AtomicReference<>();
@@ -32,8 +33,8 @@ public class BrowserRunner {
                 ProcessBuilder builder = new ProcessBuilder();
                 String command = Constants.executablePath;
                 builder.command(command, "--remote-debugging-port=9222", "--user-data-dir=/data/debug"); // todo redirect stdio
-                Process process = builder.start();
-                Scanner scanner = new Scanner(process.getErrorStream());
+                mProcess = builder.start();
+                Scanner scanner = new Scanner(mProcess.getErrorStream());
                 while (scanner.hasNext()) {
                     String line = scanner.nextLine().trim();
                     if (line.isEmpty()) {
@@ -45,7 +46,7 @@ public class BrowserRunner {
                         break;
                     }
                 }
-                if (!StringUtil.isEmpty(mWsEndPoint)) process.waitFor();
+                if (!StringUtil.isEmpty(mWsEndPoint)) mProcess.waitFor();
             } catch (Exception e) {
                 e.printStackTrace();
                 exceptionReference.set(e);
@@ -74,6 +75,10 @@ public class BrowserRunner {
     public Connection createConnection() {
         logger.info("createConnection: wsEndPoint={}", mWsEndPoint);
         return Connection.create(mWsEndPoint);
+    }
+
+    public Process getProcess() {
+        return mProcess;
     }
 
     public void kill() {

@@ -1,18 +1,26 @@
 package com.modorone.juppeteer;
 
+import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
+import com.alibaba.fastjson.annotation.JSONField;
 import com.modorone.juppeteer.cdp.CDPSession;
 import com.modorone.juppeteer.cdp.Connection;
 import com.modorone.juppeteer.component.Page;
 import com.modorone.juppeteer.component.Target;
+import com.modorone.juppeteer.exception.IllegalTargetException;
+import com.modorone.juppeteer.protocol.BrowserDomain;
 import com.modorone.juppeteer.protocol.TargetDomain;
+import com.modorone.juppeteer.util.StringUtil;
+import com.modorone.juppeteer.util.SystemUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
+
+import static com.modorone.juppeteer.Constants.INFINITY;
 
 /**
  * author: Shawn
@@ -23,11 +31,12 @@ import java.util.function.Supplier;
 public class Browser {
 
     private static final Logger logger = LoggerFactory.getLogger(Browser.class);
+    private Process mProcess;
     private Connection mConnection;
-    private String mUrl;
 
+    private final Set<String> mContexts = new HashSet<>();
     private final Map<String, Target> mTargets = new HashMap<>();
-    private final Target.TargetListener targetListener = new Target.TargetListener() {
+    private final Target.TargetListener mTargetListener = new Target.TargetListener() {
 
         @Override
         public void onCreate(Target.TargetInfo targetInfo, Supplier<CDPSession> sessionSupplier) {
@@ -38,99 +47,221 @@ public class Browser {
 
         @Override
         public void onChange(Target.TargetInfo targetInfo) {
-
+            Target target = mTargets.get(targetInfo.getTargetId());
+            if (Objects.isNull(target)) {
+                throw new IllegalTargetException("no valid target which id is " + targetInfo.getTargetId());
+            }
+            target.setTargetInfo(targetInfo);
+            // TODO: 2/16/20 添加 browser listener？
         }
 
         @Override
-        public void onDestroy(Target.TargetInfo targetInfo) {
-
+        public void onDestroy(String targetId) {
+            mTargets.remove(targetId);
         }
     };
 
 
-    public static Browser create(Connection connection) throws TimeoutException {
-        Browser browser = new Browser(connection);
+    public static Browser create(Process process, Connection connection) throws TimeoutException {
+        Browser browser = new Browser(process, connection);
         connection.doCall(TargetDomain.setDiscoverTargetsCommand, new JSONObject() {{
             put("discover", true);
         }});
         return browser;
     }
 
-    public Browser(Connection connection) {
+    public Browser(Process process, Connection connection) {
+        mProcess = process;
         mConnection = connection;
-        mConnection.setTargetListener(targetListener);
+        mConnection.setTargetListener(mTargetListener);
     }
 
     public Page newPage() throws TimeoutException {
-//        const {targetId} = await this._connection.send('Target.createTarget', {url: 'about:blank', browserContextId: contextId || undefined});
-//    const target = await this._targets.get(targetId);
-//        assert(await target._initializedPromise, 'Failed to create target for page');
-//    const page = await target.page();
-        return createPageInContext(null);
+        return newPageInContext(null);
     }
 
-    private Page createPageInContext(String contextId) throws TimeoutException {
+    public Page newIncognitoPage() throws TimeoutException {
+        JSONObject json = mConnection.doCall(TargetDomain.createBrowserContextCommand);
+        String contextId = json.getJSONObject("result").getString("browserContextId");
+        mContexts.add(contextId);
+        return newPageInContext(contextId);
+    }
+
+    private Page newPageInContext(String contextId) throws TimeoutException {
         JSONObject json = mConnection.doCall(TargetDomain.createTargetCommand, new JSONObject() {{
             put("url", "about:blank");
             put("browserContextId", contextId);
         }});
         String targetId = json.getJSONObject("result").getString("targetId");
-        return mTargets.get(targetId).newPage();
+        return mTargets.get(targetId).getPage();
     }
 
-    public String getUrl() {
-        return mUrl;
+    public String getWSEndPoint() {
+        return mConnection.getUrl();
     }
 
-    // chromium process
-    public void getProcess() {
-
+    public Process getProcess() {
+        return mProcess;
     }
 
-    public void createIncognitoBrowserContext() {
+    public Set<String> getContexts() {
+        return mContexts;
     }
 
-    public void getBrowserContexts() {
-//        return [this._defaultContext, ...Array.from(this._contexts.values())];
+    public List<Target> getTargets() {
+        List<Target> targets = new ArrayList<>();
+        mTargets.forEach((targetId, target) -> targets.add(target));
+        return targets;
     }
 
-    public void getDefaultBrowserContext() {
-//        return this._defaultContext;
+    public Target getTarget() {
+        Set<Map.Entry<String, Target>> entries = mTargets.entrySet();
+        for (Map.Entry<String, Target> entry : entries) {
+            if (StringUtil.equals("browser", entry.getValue().getTargetInfo().getType())) {
+                return entry.getValue();
+            }
+        }
+        return null;
     }
 
-    public void onTargetCreate() {
-
+    public List<Page> getPages() {
+        List<Page> pages = new ArrayList<>();
+        mTargets.forEach((targetId, target) -> {
+            if (Objects.nonNull(target) && StringUtil.equals("page", target.getTargetInfo().getType())) {
+                try {
+                    pages.add(target.getPage());
+                } catch (TimeoutException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+        return pages;
     }
 
-    public void onTargetChange() {
-
+    public boolean disposeContext(String contextId) throws TimeoutException {
+        mConnection.doCall(TargetDomain.disposeBrowserContextCommand, new JSONObject() {{
+            put("browserContextId", contextId);
+        }});
+        return mContexts.remove(contextId);
     }
 
-    public void onTargetDestroy() {
-
+    public BrowserVersion getVersion() throws TimeoutException {
+        JSONObject json = mConnection.doCall(BrowserDomain.getVersionCommand);
+        return JSON.parseObject(json.getJSONObject("result").toJSONString(), BrowserVersion.class);
     }
 
-    public void getWsEndpoint() {
-
+    public String getUserAgent() throws TimeoutException {
+        JSONObject json = mConnection.doCall(BrowserDomain.getVersionCommand);
+        return json.getJSONObject("result").getString("userAgent");
     }
 
-    public String getVersion() {
-        return "";
+    public Target waitForTarget(Predicate<Target.TargetInfo> predicate, long timeout) throws InterruptedException, TimeoutException {
+        if (timeout == INFINITY) {
+            return getTargetByPredicate(predicate, () -> true);
+        }
+
+        if (timeout < 0) throw new IllegalArgumentException("Timeout cannot be less than zero");
+
+        long start = System.currentTimeMillis();
+        return getTargetByPredicate(predicate, () -> System.currentTimeMillis() - start < timeout);
     }
 
-    public String getUserAgent() {
-        return "";
+    private Target getTargetByPredicate(Predicate<Target.TargetInfo> predicate, Supplier<Boolean> supplier) throws TimeoutException {
+        do {
+            Optional<Target.TargetInfo> first = mTargets.values().stream()
+                    .map(Target::getTargetInfo)
+                    .filter(predicate)
+                    .findFirst();
+            if (first.isPresent()) {
+                return mTargets.get(first.get().getTargetId());
+            } else {
+                SystemUtil.sleep(100);
+            }
+        } while (supplier.get());
+
+        throw new TimeoutException("timeout to wait for target");
     }
 
-    public void close() {
-
+    public void close() throws TimeoutException {
+        mConnection.doCall(BrowserDomain.closeCommand);
+        mConnection.close();
+        mProcess.destroy();
     }
 
-    public boolean isConnected() {
-        return false;
+    public boolean isAlive() {
+        return mConnection.isAlive();
     }
 
-    public void disconnect() {
+    public static class BrowserVersion {
 
+        /**
+         * protocolVersion : 1.3
+         * product : HeadlessChrome/80.0.3987.0
+         * revision : @65d20b8e6b1e34d2687f4367477b92e89867c6f5
+         * userAgent : Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/80.0.3987.0 Safari/537.36
+         * jsVersion : 8.0.426.1
+         */
+
+        @JSONField(name = "protocolVersion")
+        private String protocolVersion;
+        @JSONField(name = "product")
+        private String product;
+        @JSONField(name = "revision")
+        private String revision;
+        @JSONField(name = "userAgent")
+        private String userAgent;
+        @JSONField(name = "jsVersion")
+        private String jsVersion;
+
+        public String getProtocolVersion() {
+            return protocolVersion;
+        }
+
+        public void setProtocolVersion(String protocolVersion) {
+            this.protocolVersion = protocolVersion;
+        }
+
+        public String getProduct() {
+            return product;
+        }
+
+        public void setProduct(String product) {
+            this.product = product;
+        }
+
+        public String getRevision() {
+            return revision;
+        }
+
+        public void setRevision(String revision) {
+            this.revision = revision;
+        }
+
+        public String getUserAgent() {
+            return userAgent;
+        }
+
+        public void setUserAgent(String userAgent) {
+            this.userAgent = userAgent;
+        }
+
+        public String getJsVersion() {
+            return jsVersion;
+        }
+
+        public void setJsVersion(String jsVersion) {
+            this.jsVersion = jsVersion;
+        }
+
+        @Override
+        public String toString() {
+            return "BrowserVersion{" +
+                    "protocolVersion='" + protocolVersion + '\'' +
+                    ", product='" + product + '\'' +
+                    ", revision='" + revision + '\'' +
+                    ", userAgent='" + userAgent + '\'' +
+                    ", jsVersion='" + jsVersion + '\'' +
+                    '}';
+        }
     }
 }
