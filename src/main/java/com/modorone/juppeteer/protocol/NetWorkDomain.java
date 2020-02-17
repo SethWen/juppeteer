@@ -21,4 +21,5 @@ public interface NetWorkDomain {
     String setExtraHTTPHeadersCommand = "Network.setExtraHTTPHeaders";
     String emulateNetworkConditionsCommand = "Network.emulateNetworkConditions";
     String setUserAgentOverrideCommand = "Network.setUserAgentOverride";
+    String getResponseBodyCommand = "Network.getResponseBody";
 }

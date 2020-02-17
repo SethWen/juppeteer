@@ -25,6 +25,9 @@ public class NetworkManager implements NetworkListener {
     private CDPSession mSession;
     private FrameManager mFrameManager;
     private boolean mIgnoreHTTPSErrors;
+    /**
+     * first: username, second: password
+     */
     private Pair<String, String> mAuthenticate;
     private boolean mUserRequestInterceptionEnabled;
     private boolean mProtocolRequestInterceptionEnabled;
@@ -34,6 +37,7 @@ public class NetworkManager implements NetworkListener {
     private Map<String, String> mRequestId2InterceptionIdMap = new HashMap<>();
     private Map<String, JSONObject> mRequestId2RequestWillBeSentEventMap = new HashMap<>();
     private Map<String, Request> mRequestId2RequestMap = new HashMap<>();
+    private Set<String> mAttemptedAuthentications = new HashSet<>();
 
     public NetworkManager(CDPSession session, FrameManager frameManager, boolean ignoreHTTPSErrors) {
         mSession = session;
@@ -119,17 +123,54 @@ public class NetworkManager implements NetworkListener {
         mSession.doCall(NetWorkDomain.setCacheDisabledCommand, new JSONObject() {{
             put("cacheDisabled", mUserCacheDisabled || mProtocolRequestInterceptionEnabled);
         }});
-
     }
 
     @Override
-    public void onRequestPaused() {
-
+    public void onRequestPaused(JSONObject event) {
+        if (!mUserRequestInterceptionEnabled && mProtocolRequestInterceptionEnabled) {
+            // FIXME: 2/18/20 存在递归调用，如何处理？
+            try {
+                mSession.doCall(FetchDomain.continueRequestCommand, new JSONObject() {{
+                    put("requestId", event.getString("requestId"));
+                }});
+            } catch (Exception ignore) {
+            }
+        }
+        String requestId = event.getString("networkId");
+        String interceptionId = event.getString("requestId");
+        if (!StringUtil.isEmpty(requestId) && mRequestId2RequestWillBeSentEventMap.containsKey(requestId)) {
+            JSONObject willBeSentEvent = mRequestId2RequestWillBeSentEventMap.get(requestId);
+            onRequest(willBeSentEvent, interceptionId);
+            mRequestId2RequestWillBeSentEventMap.remove(requestId);
+        } else {
+            mRequestId2InterceptionIdMap.put(requestId, interceptionId);
+        }
     }
 
     @Override
-    public void onAuthRequired() {
+    public void onAuthRequired(JSONObject event) {
+        // {"Default"|"CancelAuth"|"ProvideCredentials"}
+        String response = "Default";
+        if (mAttemptedAuthentications.contains(event.getString("requestId"))) {
+            response = "CancelAuth";
+        } else if (Objects.nonNull(mAuthenticate)) {
+            response = "ProvideCredentials";
+            mAttemptedAuthentications.add(event.getString("requestId"));
+        }
 
+        try {
+            // FIXME: 2/18/20 存在递归调用，如何处理？
+            String finalResponse = response;
+            mSession.doCall(FetchDomain.continueWithAuthCommand, new JSONObject() {{
+                put("requestId", event.getString("requestId"));
+                put("authChallengeResponse", new JSONObject() {{
+                    put("response", finalResponse);
+                    put("username", Objects.nonNull(mAuthenticate) ? mAuthenticate.getFirst() : null);
+                    put("password", Objects.nonNull(mAuthenticate) ? mAuthenticate.getSecond() : null);
+                }});
+            }});
+        } catch (Exception ignore) {
+        }
     }
 
     @Override
@@ -193,6 +234,13 @@ public class NetworkManager implements NetworkListener {
     }
 
     private void handleRequestRedirect(Request request, JSONObject redirectResponse) {
+        Response response = new Response(mSession, request, redirectResponse);
+        request.setResponse(response);
+        request.getRedirectChain().add(request);
+        // TODO: 2/17/20
+//        response._bodyLoadedPromiseFulfill.call(null, new Error('Response body is unavailable for redirect responses'));
+        mRequestId2RequestMap.remove(request.getRequestId());
+        mAttemptedAuthentications.remove(request.getInterceptionId());
 // const response = new Response(this._client, request, responsePayload);
 //        request._response = response;
 //        request._redirectChain.push(request);
@@ -204,22 +252,51 @@ public class NetworkManager implements NetworkListener {
     }
 
     @Override
-    public void onRequestServedFromCache() {
-
+    public void onRequestServedFromCache(JSONObject event) {
+        Request request = mRequestId2RequestMap.get(event.getString("requestId"));
+        if (Objects.nonNull(request)) request.setFromMemoryCache(true);
     }
 
     @Override
-    public void onResponseReceived() {
+    public void onResponseReceived(JSONObject event) {
+        Request request = mRequestId2RequestMap.get(event.getString("requestId"));
+        // FileUpload sends a response without a matching request.
+        if (Objects.isNull(request)) return;
 
+        Response response = new Response(mSession, request, event.getJSONObject("response"));
+        request.setResponse(response);
     }
 
     @Override
-    public void onLoadingFinished() {
+    public void onLoadingFinished(JSONObject event) {
+        Request request = mRequestId2RequestMap.get(event.getString("requestId"));
+        // For certain requestIds we never receive requestWillBeSent event.
+        // @see https://crbug.com/750469
+        if (Objects.isNull(request)) return;
 
+        // Under certain conditions we never get the Network.responseReceived
+        // event from protocol. @see https://crbug.com/883475
+        if (Objects.nonNull(request.getResponse())) {
+            // TODO: 2/17/20
+//            request.response()._bodyLoadedPromiseFulfill.call(null);
+        }
+        mRequestId2RequestMap.remove(request.getRequestId());
+        mAttemptedAuthentications.remove(request.getInterceptionId());
     }
 
     @Override
-    public void onLoadingFailed() {
-
+    public void onLoadingFailed(JSONObject event) {
+        Request request = mRequestId2RequestMap.get(event.getString("requestId"));
+        // For certain requestIds we never receive requestWillBeSent event.
+        // @see https://crbug.com/750469
+        if (Objects.isNull(request)) return;
+        request.setFailureText(event.getString("errorText"));
+        Response response = request.getResponse();
+        if (Objects.nonNull(response)) {
+            // TODO: 2/17/20
+//            response._bodyLoadedPromiseFulfill.call(null);
+        }
+        mRequestId2RequestMap.remove(request.getRequestId());
+        mAttemptedAuthentications.remove(request.getInterceptionId());
     }
 }

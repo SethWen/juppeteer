@@ -4,17 +4,17 @@ import com.alibaba.fastjson.JSONObject;
 
 public interface NetworkListener {
 
-        void onRequestPaused();
+        void onRequestPaused(JSONObject event);
 
-        void onAuthRequired();
+        void onAuthRequired(JSONObject event);
 
-        void onRequestWillBeSent(JSONObject json);
+        void onRequestWillBeSent(JSONObject event);
 
-        void onRequestServedFromCache();
+        void onRequestServedFromCache(JSONObject event);
 
-        void onResponseReceived();
+        void onResponseReceived(JSONObject event);
 
-        void onLoadingFinished();
+        void onLoadingFinished(JSONObject event);
 
-        void onLoadingFailed();
+        void onLoadingFailed(JSONObject event);
     }

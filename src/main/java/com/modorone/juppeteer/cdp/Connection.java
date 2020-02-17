@@ -314,25 +314,25 @@ public class Connection extends WebSocketListener {
                 mFrameListener.onLifecycleEvent();
                 break;
             case FetchDomain.requestPausedEvent:
-                mNetworkListener.onRequestPaused();
+                mNetworkListener.onRequestPaused(json.getJSONObject("params"));
                 break;
             case FetchDomain.authRequiredEvent:
-                mNetworkListener.onAuthRequired();
+                mNetworkListener.onAuthRequired(json.getJSONObject("params"));
                 break;
             case NetWorkDomain.requestWillBeSentEvent:
                 mNetworkListener.onRequestWillBeSent(json.getJSONObject("params"));
                 break;
             case NetWorkDomain.requestServedFromCacheEvent:
-                mNetworkListener.onRequestServedFromCache();
+                mNetworkListener.onRequestServedFromCache(json.getJSONObject("params"));
                 break;
             case NetWorkDomain.responseReceivedEvent:
-                mNetworkListener.onResponseReceived();
+                mNetworkListener.onResponseReceived(json.getJSONObject("params"));
                 break;
             case NetWorkDomain.loadingFinishedEvent:
-                mNetworkListener.onLoadingFinished();
+                mNetworkListener.onLoadingFinished(json.getJSONObject("params"));
                 break;
             case NetWorkDomain.loadingFailedEvent:
-                mNetworkListener.onLoadingFailed();
+                mNetworkListener.onLoadingFailed(json.getJSONObject("params"));
                 break;
 
             default:

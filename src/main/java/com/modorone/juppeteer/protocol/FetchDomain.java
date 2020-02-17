@@ -11,4 +11,5 @@ public interface FetchDomain {
     String disableCommand = "Fetch.disable";
     String failRequestCommand = "Fetch.failRequest";
     String continueRequestCommand = "Fetch.continueRequest";
+    String continueWithAuthCommand = "Fetch.continueWithAuth";
 }

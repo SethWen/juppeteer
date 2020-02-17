@@ -19,28 +19,6 @@ import java.util.concurrent.TimeoutException;
  * update: Shawn 2/17/20 12:33 PM
  */
 public class Request {
-//    constructor(client, frame, interceptionId, allowInterception, event, redirectChain) {
-//        this._client = client;
-//        this._requestId = event.requestId;
-//        this._isNavigationRequest = event.requestId === event.loaderId && event.type === 'Document';
-//        this._interceptionId = interceptionId;
-//        this._allowInterception = allowInterception;
-//        this._interceptionHandled = false;
-//        this._response = null;
-//        this._failureText = null;
-//
-//        this._url = event.request.url;
-//        this._resourceType = event.type.toLowerCase();
-//        this._method = event.request.method;
-//        this._postData = event.request.postData;
-//        this._headers = {};
-//        this._frame = frame;
-//        this._redirectChain = redirectChain;
-//        for (const key of Object.keys(event.request.headers))
-//        this._headers[key.toLowerCase()] = event.request.headers[key];
-//
-//        this._fromMemoryCache = false;
-//    }
 
     private CDPSession mSession;
     private String mRequestId;
@@ -76,6 +54,22 @@ public class Request {
 
         JSONObject json = event.getJSONObject("request").getJSONObject("headers");
         json.forEach((key, value) -> mHeaders.put(key.toLowerCase(), (String) value));
+    }
+
+    public String getRequestId() {
+        return mRequestId;
+    }
+
+    public void setRequestId(String requestId) {
+        this.mRequestId = requestId;
+    }
+
+    public String getInterceptionId() {
+        return mInterceptionId;
+    }
+
+    public void setInterceptionId(String interceptionId) {
+        mInterceptionId = interceptionId;
     }
 
     public List<Request> getRedirectChain() {
@@ -146,12 +140,24 @@ public class Request {
         return mFrame;
     }
 
-    public void setResponse(Frame frame) {
+    public void setFrame(Frame frame) {
         mFrame = frame;
     }
 
     public boolean isNavigationRequest() {
         return mIsNavigationRequest;
+    }
+
+    public void setNavigationRequest(boolean isNavigationRequest) {
+        mIsNavigationRequest = isNavigationRequest;
+    }
+
+    public boolean isFromMemoryCache() {
+        return mFromMemoryCache;
+    }
+
+    public void setFromMemoryCache(boolean fromMemoryCache) {
+        mFromMemoryCache = fromMemoryCache;
     }
 
     public String failure() {
@@ -166,7 +172,7 @@ public class Request {
         if (mInterceptionHandled) throw new RequestException("Request is already handled!");
 
         mInterceptionHandled = true;
-        mSession.doCall(FetchDomain.continueRequestCommand, new JSONObject(){{
+        mSession.doCall(FetchDomain.continueRequestCommand, new JSONObject() {{
             put("requestId", mInterceptionId);
             put("url", option.getUrl());
             put("method", option.getMethod());
@@ -174,13 +180,13 @@ public class Request {
         }});
     }
 
-    public void respond() {
-// Mocking responses for dataURL requests is not currently supported.
-//        if (this._url.startsWith('data:'))
-//            return;
-//        assert(this._allowInterception, 'Request Interception is not enabled!');
-//        assert(!this._interceptionHandled, 'Request is already handled!');
-//        this._interceptionHandled = true;
+    public void respond(Response response) {
+        // Request interception is not supported for data: urls.
+        if (StringUtil.startsWith(mUrl, "data:")) return;
+        if (!mAllowInterception) throw new RequestException("Request Interception is not enabled!");
+        if (mInterceptionHandled) throw new RequestException("Request is already handled!");
+
+        mInterceptionHandled = true;
 //
 //    const responseBody = response.body && helper.isString(response.body) ? Buffer.from(/** @type {string} */(response.body)) : /** @type {?Buffer} */(response.body || null);
 //
@@ -218,7 +224,7 @@ public class Request {
         if (mInterceptionHandled) throw new RequestException("Request is already handled!");
 
         mInterceptionHandled = true;
-        mSession.doCall(FetchDomain.failRequestCommand, new JSONObject(){{
+        mSession.doCall(FetchDomain.failRequestCommand, new JSONObject() {{
             put("requestId", mInterceptionId);
             put("errorReason", errorReason);
         }});

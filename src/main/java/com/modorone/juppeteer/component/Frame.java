@@ -69,7 +69,7 @@ public class Frame {
             put("url", url);
             put("referer", "");
             put("frameId", mFrameInfo.getId());
-        }}, 6000).getJSONObject("result");
+        }}).getJSONObject("result");
         String loaderId = result.getString("loaderId");
         if (!StringUtil.isEmpty(loaderId)) {
             // ensureNewDocumentNavigation
