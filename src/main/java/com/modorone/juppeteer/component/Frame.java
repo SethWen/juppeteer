@@ -1,11 +1,16 @@
 package com.modorone.juppeteer.component;
 
+import com.alibaba.fastjson.JSONObject;
 import com.alibaba.fastjson.annotation.JSONField;
 import com.modorone.juppeteer.cdp.CDPSession;
+import com.modorone.juppeteer.exception.RequestException;
+import com.modorone.juppeteer.protocol.PageDomain;
+import com.modorone.juppeteer.util.StringUtil;
 
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.TimeoutException;
 
 /**
  * author: Shawn
@@ -52,8 +57,30 @@ public class Frame {
 
     }
 
-    public void navigate(String url) {
+    public void navigate(String url) throws TimeoutException, RequestException {
+//        try {
+//        const response = await client.send('Page.navigate', {url, referrer, frameId});
+//            ensureNewDocumentNavigation = !!response.loaderId;
+//            return response.errorText ? new Error(`${response.errorText} at ${url}`) : null;
+//        } catch (error) {
+//            return error;
+//        }
+        JSONObject result = mSession.doCall(PageDomain.navigateCommand, new JSONObject() {{
+            put("url", url);
+            put("referer", "");
+            put("frameId", mFrameInfo.getId());
+        }}, 6000).getJSONObject("result");
+        String loaderId = result.getString("loaderId");
+        if (!StringUtil.isEmpty(loaderId)) {
+            // ensureNewDocumentNavigation
+        }
+        String errorText = result.getString("errorText");
+        if (!StringUtil.isEmpty(errorText)) {
+            throw new RequestException(errorText);
+        }
 
+//        {"result":{"frameId":"5BF35E2DDCE3A76E506283D505690927","loaderId":"B88468FB682EFF0E86F170FA2EC53E05"},"id":13,"sessionId":"552B9FEF3C4ECC110FEC21EDC6149EE2"}
+//        {"result":{"errorText":"net::ERR_ABORTED","frameId":"75521C56E71CBAB0B6106F596ADD4E99","loaderId":"65B60665621A7266D2125A476C94041F"},"id":13,"sessionId":"885EA32C6AD1C33EF8DC7BF40889ABCA"}
     }
 
     public void click(/*selector, options = {}*/) {

@@ -11,7 +11,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.sound.midi.Soundbank;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Predicate;
@@ -27,10 +29,16 @@ public class Test {
 
     public static void main(String[] args) {
         logger.info("main: ={}", "start...");
+//        JSONObject json = JSON.parseObject("{\"method\":\"Network.requestWillBeSent\",\"params\":{\"requestId\":\"B7533B6252FFF6FFB02768B0E61A9350\",\"loaderId\":\"B7533B6252FFF6FFB02768B0E61A9350\",\"documentURL\":\"https://www.baidu.com/\",\"request\":{\"url\":\"https://www.baidu.com/\",\"method\":\"GET\",\"headers\":{\"Upgrade-Insecure-Requests\":\"1\",\"User-Agent\":\"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.0 Safari/537.36\",\"Sec-Fetch-Dest\":\"document\"},\"mixedContentType\":\"none\",\"initialPriority\":\"VeryHigh\",\"referrerPolicy\":\"no-referrer-when-downgrade\"},\"timestamp\":17615.078838,\"wallTime\":1581922620.017033,\"initiator\":{\"type\":\"other\"},\"type\":\"Document\",\"frameId\":\"C43347C629294C9DB73F52999BF26ACE\",\"hasUserGesture\":false},\"sessionId\":\"AF9AED5531E57B299F739EE62E6179ED\"}");
+//
+//        json.getJSONObject("params").getJSONObject("request").getJSONObject("headers").forEach((key, value) -> {
+//            System.out.println(key + ":" + value);
+//        });
         try {
             Browser browser = Juppeteer.getInstance().launch(new Options());
             Page page = browser.getPages().get(0);
-            page.setGeolocation(100, 50, 2);
+//            page.setGeolocation(100, 50, 2);
+            page.navigate("https://www.baidu.com");
         } catch (Exception e) {
             e.printStackTrace();
         }

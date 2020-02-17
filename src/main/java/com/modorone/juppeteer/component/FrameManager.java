@@ -2,6 +2,7 @@ package com.modorone.juppeteer.component;
 
 import com.alibaba.fastjson.JSONObject;
 import com.modorone.juppeteer.cdp.CDPSession;
+import com.modorone.juppeteer.component.network.NetworkManager;
 import com.modorone.juppeteer.exception.IllegalFrameException;
 import com.modorone.juppeteer.protocol.PageDomain;
 import com.modorone.juppeteer.protocol.RuntimeDomain;
@@ -25,26 +26,16 @@ public class FrameManager implements Frame.FrameListener {
     private Map<String, Frame> mFrames = new HashMap<>();
     private CDPSession mSession;
     private Page mPage;
-    private NetWorkManager mNetWorkManager;
+    private NetworkManager mNetWorkManager;
     private Frame mMainFrame;
 
     public FrameManager(CDPSession session, Page page) {
         mSession = session;
         mPage = page;
-        mNetWorkManager = new NetWorkManager(session, this, true); // TODO: 2/14/20 ignore https error
+        mNetWorkManager = new NetworkManager(session, this, true); // TODO: 2/14/20 ignore https error
     }
 
     public void init() throws TimeoutException {
-//          const [,{frameTree}] = await Promise.all([
-//                this._client.send('Page.enable'),
-//                this._client.send('Page.getFrameTree'),
-//    ]);
-//        this._handleFrameTree(frameTree);
-//        await Promise.all([
-//                this._client.send('Page.setLifecycleEventsEnabled', { enabled: true }),
-//        this._client.send('Runtime.enable', {}).then(() => this._ensureIsolatedWorld(UTILITY_WORLD_NAME)),
-//        this._networkManager.initialize(),
-//    ]);
         mSession.setFrameListener(this);
         mSession.doCall(PageDomain.enableCommand);
         JSONObject json = mSession.doCall(PageDomain.getFrameTreeCommand);

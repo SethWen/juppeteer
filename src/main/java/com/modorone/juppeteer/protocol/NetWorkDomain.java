@@ -8,5 +8,17 @@ package com.modorone.juppeteer.protocol;
  */
 public interface NetWorkDomain {
 
+    // event
+    String requestWillBeSentEvent = "Network.requestWillBeSent";
+    String requestServedFromCacheEvent = "Network.requestServedFromCache";
+    String responseReceivedEvent = "Network.responseReceived";
+    String loadingFinishedEvent = "Network.loadingFinished";
+    String loadingFailedEvent = "Network.loadingFailed";
+
+    // command
     String enableCommand = "Network.enable";
+    String setCacheDisabledCommand = "Network.setCacheDisabled";
+    String setExtraHTTPHeadersCommand = "Network.setExtraHTTPHeaders";
+    String emulateNetworkConditionsCommand = "Network.emulateNetworkConditions";
+    String setUserAgentOverrideCommand = "Network.setUserAgentOverride";
 }

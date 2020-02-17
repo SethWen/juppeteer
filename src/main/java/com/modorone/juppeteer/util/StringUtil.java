@@ -24,6 +24,11 @@ public class StringUtil {
         return sb.toString();
     }
 
+    public static boolean startsWith(String src, String prefix) {
+        if (Objects.isNull(src)) return false;
+        return src.startsWith(prefix);
+    }
+
     public static boolean isEmpty(CharSequence ch) {
         return Objects.isNull(ch) || ch.length() == 0;
     }

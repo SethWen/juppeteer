@@ -4,11 +4,11 @@ import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.modorone.juppeteer.component.Frame;
+import com.modorone.juppeteer.component.network.NetworkListener;
+import com.modorone.juppeteer.component.network.NetworkManager;
 import com.modorone.juppeteer.component.Target;
 import com.modorone.juppeteer.exception.WebSocketCreationException;
-import com.modorone.juppeteer.protocol.PageDomain;
-import com.modorone.juppeteer.protocol.RuntimeDomain;
-import com.modorone.juppeteer.protocol.TargetDomain;
+import com.modorone.juppeteer.protocol.*;
 import com.modorone.juppeteer.util.StringUtil;
 import com.modorone.juppeteer.util.SystemUtil;
 import okhttp3.*;
@@ -24,6 +24,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
+
+import static com.modorone.juppeteer.Constants.DEFAULT_RPC_TIMEOUT;
 
 /**
  * author: Shawn
@@ -45,6 +47,7 @@ public class Connection extends WebSocketListener {
 
     private Target.TargetListener mTargetListener;
     private Frame.FrameListener mFrameListener;
+    private NetworkListener mNetworkListener;
 
     public static Connection create(String url) {
         return new Connection(url);
@@ -127,6 +130,10 @@ public class Connection extends WebSocketListener {
         mFrameListener = listener;
     }
 
+    public void setNetworkListener(NetworkListener listener) {
+        mNetworkListener = listener;
+    }
+
 //    public String doCall(String text) throws TimeoutException {
 //        BlockingCell<String> k = new BlockingCell<>();
 //        int id;
@@ -164,19 +171,31 @@ public class Connection extends WebSocketListener {
     }
 
     public JSONObject doCall(String method) throws TimeoutException {
+        return doCall(method, DEFAULT_RPC_TIMEOUT);
+    }
+
+    public JSONObject doCall(String method, int timeout) throws TimeoutException {
         return doCall(new JSONObject() {{
             put("method", method);
-        }});
+        }}, timeout);
     }
 
     public JSONObject doCall(String method, JSONObject params) throws TimeoutException {
+        return doCall(method, params, DEFAULT_RPC_TIMEOUT);
+    }
+
+    public JSONObject doCall(String method, JSONObject params, int timeout) throws TimeoutException {
         return doCall(new JSONObject() {{
             put("method", method);
             put("params", params);
-        }});
+        }}, timeout);
     }
 
     public JSONObject doCall(JSONObject json) throws TimeoutException {
+        return doCall(json, DEFAULT_RPC_TIMEOUT);
+    }
+
+    public JSONObject doCall(JSONObject json, int timeout) throws TimeoutException {
         BlockingCell<String> k = new BlockingCell<>();
         int id;
         synchronized (mContinuationMap) {
@@ -188,7 +207,7 @@ public class Connection extends WebSocketListener {
         mWebSocket.send(json.toJSONString());
         String reply;
         try {
-            reply = k.uninterruptibleGet(5000);
+            reply = k.uninterruptibleGet(timeout);
         } catch (TimeoutException ex) {
             // Avoid potential leak.  This entry is no longer needed by caller.
             mContinuationMap.remove(id);
@@ -251,16 +270,16 @@ public class Connection extends WebSocketListener {
 
         switch (json.getString("method")) {
             case TargetDomain.targetCreatedEvent:
-                Target.TargetInfo targetInfo = JSON.parseObject(
-                        json.getJSONObject("params").getJSONObject("targetInfo").toJSONString(),
-                        Target.TargetInfo.class);
+                Target.TargetInfo targetInfo = json.getJSONObject("params").
+                        getJSONObject("targetInfo")
+                        .toJavaObject(Target.TargetInfo.class);
                 Supplier<CDPSession> sessionSupplier = () -> createSession(targetInfo.getTargetId());
                 mTargetListener.onCreate(targetInfo, sessionSupplier);
                 break;
             case TargetDomain.targetChangedEvent:
-                mTargetListener.onChange(JSON.parseObject(
-                        json.getJSONObject("params").getJSONObject("targetInfo").toJSONString(),
-                        Target.TargetInfo.class));
+                mTargetListener.onChange(json.getJSONObject("params")
+                        .getJSONObject("targetInfo")
+                        .toJavaObject(Target.TargetInfo.class));
                 break;
             case TargetDomain.targetDestroyedEvent:
                 mTargetListener.onDestroy(json.getJSONObject("params").getString("targetId"));
@@ -269,7 +288,9 @@ public class Connection extends WebSocketListener {
                 mFrameListener.onFrameAttached(null);
                 break;
             case PageDomain.frameNavigatedEvent:
-                mFrameListener.onFrameNavigated(null);
+                mFrameListener.onFrameNavigated(json.getJSONObject("params")
+                        .getJSONObject("frame")
+                        .toJavaObject(Frame.FrameInfo.class));
                 break;
             case PageDomain.frameDetachedEvent:
                 mFrameListener.onFrameDetached();
@@ -292,6 +313,28 @@ public class Connection extends WebSocketListener {
             case PageDomain.lifecycleEventEvent:
                 mFrameListener.onLifecycleEvent();
                 break;
+            case FetchDomain.requestPausedEvent:
+                mNetworkListener.onRequestPaused();
+                break;
+            case FetchDomain.authRequiredEvent:
+                mNetworkListener.onAuthRequired();
+                break;
+            case NetWorkDomain.requestWillBeSentEvent:
+                mNetworkListener.onRequestWillBeSent(json.getJSONObject("params"));
+                break;
+            case NetWorkDomain.requestServedFromCacheEvent:
+                mNetworkListener.onRequestServedFromCache();
+                break;
+            case NetWorkDomain.responseReceivedEvent:
+                mNetworkListener.onResponseReceived();
+                break;
+            case NetWorkDomain.loadingFinishedEvent:
+                mNetworkListener.onLoadingFinished();
+                break;
+            case NetWorkDomain.loadingFailedEvent:
+                mNetworkListener.onLoadingFailed();
+                break;
+
             default:
                 break;
         }

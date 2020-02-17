@@ -21,4 +21,5 @@ public interface PageDomain {
     String enableCommand = "Page.enable";
     String getFrameTreeCommand = "Page.getFrameTree";
     String setLifecycleEventsEnabledCommand = "Page.setLifecycleEventsEnabled";
+    String navigateCommand = "Page.navigate";
 }

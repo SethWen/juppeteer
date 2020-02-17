@@ -80,7 +80,7 @@ public class Page {
         return frame;
     }
 
-    public void navigate(String url) {
+    public void navigate(String url) throws TimeoutException {
         mFrameManager.getMainFrame().navigate(url);
     }
 
