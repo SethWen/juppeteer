@@ -5,7 +5,6 @@ import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.modorone.juppeteer.component.Frame;
 import com.modorone.juppeteer.component.network.NetworkListener;
-import com.modorone.juppeteer.component.network.NetworkManager;
 import com.modorone.juppeteer.component.Target;
 import com.modorone.juppeteer.exception.WebSocketCreationException;
 import com.modorone.juppeteer.protocol.*;
@@ -231,6 +230,7 @@ public class Connection extends WebSocketListener {
     @Override
     public void onMessage(WebSocket webSocket, String text) {
         super.onMessage(webSocket, text);
+        logger.debug("onMessage: text={}", text);
         JSONObject json = JSON.parseObject(text);
         if (StringUtil.equals(TargetDomain.attachedToTargetEvent, json.getString("method"))) {
             String sessionId = json.getJSONObject("params").getString("sessionId");
@@ -293,16 +293,16 @@ public class Connection extends WebSocketListener {
                         .toJavaObject(Frame.FrameInfo.class));
                 break;
             case PageDomain.frameDetachedEvent:
-                mFrameListener.onFrameDetached();
+                mFrameListener.onFrameDetached(json.getJSONObject("params"));
                 break;
             case PageDomain.frameStoppedLoadingEvent:
-                mFrameListener.onFrameStoppedLoading();
+                mFrameListener.onFrameStoppedLoading(json.getJSONObject("params"));
                 break;
             case PageDomain.navigatedWithinDocumentEvent:
-                mFrameListener.onFrameNavigatedWithinDocument();
+                mFrameListener.onFrameNavigatedWithinDocument(json.getJSONObject("params"));
                 break;
             case RuntimeDomain.executionContextCreatedEvent:
-                mFrameListener.onExecutionContextCreated();
+                mFrameListener.onExecutionContextCreated(json.getJSONObject("params").getJSONObject("context"));
                 break;
             case RuntimeDomain.executionContextDestroyedEvent:
                 mFrameListener.onExecutionContextDestroyed();
@@ -311,7 +311,7 @@ public class Connection extends WebSocketListener {
                 mFrameListener.onExecutionContextsCleared();
                 break;
             case PageDomain.lifecycleEventEvent:
-                mFrameListener.onLifecycleEvent();
+                mFrameListener.onLifecycleEvent(json.getJSONObject("params"));
                 break;
             case FetchDomain.requestPausedEvent:
                 mNetworkListener.onRequestPaused(json.getJSONObject("params"));

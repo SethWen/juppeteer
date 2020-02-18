@@ -10,6 +10,9 @@ import com.modorone.juppeteer.protocol.NetWorkDomain;
 import com.modorone.juppeteer.protocol.SecurityDomain;
 import com.modorone.juppeteer.util.Pair;
 import com.modorone.juppeteer.util.StringUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import sun.reflect.generics.tree.VoidDescriptor;
 
 import java.util.*;
 import java.util.concurrent.TimeoutException;
@@ -21,6 +24,8 @@ import java.util.concurrent.TimeoutException;
  * update: Shawn 2/14/20 5:59 PM
  */
 public class NetworkManager implements NetworkListener {
+
+    private static final Logger logger = LoggerFactory.getLogger(NetworkManager.class);
 
     private CDPSession mSession;
     private FrameManager mFrameManager;
@@ -38,6 +43,7 @@ public class NetworkManager implements NetworkListener {
     private Map<String, JSONObject> mRequestId2RequestWillBeSentEventMap = new HashMap<>();
     private Map<String, Request> mRequestId2RequestMap = new HashMap<>();
     private Set<String> mAttemptedAuthentications = new HashSet<>();
+    private Request mNavigationRequest;
 
     public NetworkManager(CDPSession session, FrameManager frameManager, boolean ignoreHTTPSErrors) {
         mSession = session;
@@ -205,6 +211,7 @@ public class NetworkManager implements NetworkListener {
     }
 
     public void onRequest(JSONObject event, String interceptionId) {
+        logger.debug("onRequest: event={},interceptionId={}", event, interceptionId);
         List<Request> redirectChain = new ArrayList<>();
         if (Objects.nonNull(event.getJSONObject("redirectResponse"))) {
             Request request = mRequestId2RequestMap.get(event.getString("requestId"));
@@ -217,6 +224,13 @@ public class NetworkManager implements NetworkListener {
         Frame frame = StringUtil.isEmpty(frameId) ? null : mFrameManager.getFrame(frameId);
         Request request = new Request(mSession, frame, interceptionId, mUserRequestInterceptionEnabled, event, redirectChain);
         mRequestId2RequestMap.put(event.getString("requestId"), request);
+
+        if (request.isNavigationRequest()) {
+            mNavigationRequest = request;
+        }
+//        if (request.frame() !== this._frame || !request.isNavigationRequest())
+//            return;
+//        this._navigationRequest = request;
 
 //        let redirectChain = [];
 //        if (event.redirectResponse) {
@@ -233,11 +247,19 @@ public class NetworkManager implements NetworkListener {
 //        this.emit(Events.NetworkManager.Request, request);
     }
 
+    public Response getNavigateResponse() {
+        if (Objects.nonNull(mNavigationRequest)) {
+            return mNavigationRequest.getResponse();
+        }
+        return null;
+    }
+
     private void handleRequestRedirect(Request request, JSONObject redirectResponse) {
         Response response = new Response(mSession, request, redirectResponse);
         request.setResponse(response);
         request.getRedirectChain().add(request);
         // TODO: 2/17/20
+        response.terminateWaiting(null);
 //        response._bodyLoadedPromiseFulfill.call(null, new Error('Response body is unavailable for redirect responses'));
         mRequestId2RequestMap.remove(request.getRequestId());
         mAttemptedAuthentications.remove(request.getInterceptionId());
@@ -276,9 +298,10 @@ public class NetworkManager implements NetworkListener {
 
         // Under certain conditions we never get the Network.responseReceived
         // event from protocol. @see https://crbug.com/883475
-        if (Objects.nonNull(request.getResponse())) {
+        Response response = request.getResponse();
+        if (Objects.nonNull(response)) {
             // TODO: 2/17/20
-//            request.response()._bodyLoadedPromiseFulfill.call(null);
+            response.terminateWaiting(null);
         }
         mRequestId2RequestMap.remove(request.getRequestId());
         mAttemptedAuthentications.remove(request.getInterceptionId());
@@ -294,7 +317,7 @@ public class NetworkManager implements NetworkListener {
         Response response = request.getResponse();
         if (Objects.nonNull(response)) {
             // TODO: 2/17/20
-//            response._bodyLoadedPromiseFulfill.call(null);
+            response.terminateWaiting(event.getString("errorText"));
         }
         mRequestId2RequestMap.remove(request.getRequestId());
         mAttemptedAuthentications.remove(request.getInterceptionId());

@@ -3,12 +3,14 @@ package com.modorone.juppeteer.component;
 import com.alibaba.fastjson.JSONObject;
 import com.modorone.juppeteer.cdp.CDPSession;
 import com.modorone.juppeteer.component.network.NetworkManager;
+import com.modorone.juppeteer.component.network.Response;
 import com.modorone.juppeteer.exception.IllegalFrameException;
 import com.modorone.juppeteer.protocol.PageDomain;
 import com.modorone.juppeteer.protocol.RuntimeDomain;
 import com.modorone.juppeteer.util.StringUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import sun.java2d.loops.XORComposite;
 
 import java.util.*;
 import java.util.concurrent.TimeoutException;
@@ -28,6 +30,7 @@ public class FrameManager implements Frame.FrameListener {
     private Page mPage;
     private NetworkManager mNetWorkManager;
     private Frame mMainFrame;
+    private LifecycleWatcher.LifecycleListener mLifecycleListener;
 
     public FrameManager(CDPSession session, Page page) {
         mSession = session;
@@ -46,6 +49,10 @@ public class FrameManager implements Frame.FrameListener {
         mSession.doCall(RuntimeDomain.enableCommand);
         ensureIsolatedWorld("juppeteer_world"); // FIXME: 2/14/20
         mNetWorkManager.init();
+    }
+
+    public void setLifecycleListener(LifecycleWatcher.LifecycleListener listener) {
+        mLifecycleListener = listener;
     }
 
     private void handleFrameTree(JSONObject frameTree) {
@@ -100,16 +107,18 @@ public class FrameManager implements Frame.FrameListener {
         return new ArrayList<>();
     }
 
+    public void navigateFrame(Frame frame, String url) {
+        Response navigateResponse = mNetWorkManager.getNavigateResponse();
+        try {
+            logger.debug("navigateFrame: navigateResponse={}", navigateResponse);
+//            navigateResponse.getBuffer();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
     @Override
     public void onFrameAttached(Frame.FrameInfo frameInfo) {
-//        if (this._frames.has(frameId))
-//            return;
-//        assert(parentFrameId);
-//    const parentFrame = this._frames.get(parentFrameId);
-//    const frame = new Frame(this, this._client, parentFrame, frameId);
-//        this._frames.set(frame._id, frame);
-//        this.emit(Events.FrameManager.FrameAttached, frame);
-
         if (mFrames.containsKey(frameInfo.getId())) return;
 
         if (StringUtil.isEmpty(frameInfo.getParentId()))
@@ -166,23 +175,67 @@ public class FrameManager implements Frame.FrameListener {
     }
 
     @Override
-    public void onFrameNavigatedWithinDocument() {
+    public void onFrameNavigatedWithinDocument(JSONObject event) {
+        Frame frame = mFrames.get(event.getString("frameId"));
+        if (Objects.isNull(frame)) return;
 
+        frame.navigatedWithinDocument(event.getString("url"));
+
+//        this.emit(Events.FrameManager.FrameNavigatedWithinDocument, frame);
+//        this.emit(Events.FrameManager.FrameNavigated, frame);
     }
 
     @Override
-    public void onFrameDetached() {
-
+    public void onFrameDetached(JSONObject event) {
+        Frame frame = mFrames.get(event.getString("frameId"));
+        if (Objects.nonNull(frame)) removeFramesRecursively(frame);
     }
 
     @Override
-    public void onFrameStoppedLoading() {
-
+    public void onFrameStoppedLoading(JSONObject event) {
+        Frame frame = mFrames.get(event.getString("frameId"));
+        if (Objects.nonNull(frame)) {
+            frame.stopLoading();
+//        this.emit(Events.FrameManager.LifecycleEvent, frame);
+        }
     }
 
     @Override
-    public void onExecutionContextCreated() {
-
+    public void onExecutionContextCreated(JSONObject context) {
+        logger.debug("onExecutionContextCreated: context={}", context);
+        String frameId = null;
+        JSONObject auxData = context.getJSONObject("auxData");
+        if (Objects.nonNull(auxData)) {
+            frameId = auxData.getString("frameId");
+        }
+        Frame frame = mFrames.get(frameId);
+        String world;
+        if (Objects.nonNull(frame)) {
+            if (Objects.nonNull(auxData) && auxData.getBoolean("isDefault")) {
+//                world = frame
+//            } else if (StringUtil.equals(context.getString("name"), "")) {
+            }
+        }
+// const frameId = contextPayload.auxData ? contextPayload.auxData.frameId : null;
+//    const frame = this._frames.get(frameId) || null;
+//        let world = null;
+//        if (frame) {
+//            if (contextPayload.auxData && !!contextPayload.auxData['isDefault']) {
+//                world = frame._mainWorld;
+//            } else if (contextPayload.name === UTILITY_WORLD_NAME && !frame._secondaryWorld._hasContext()) {
+//                // In case of multiple sessions to the same target, there's a race between
+//                // connections so we might end up creating multiple isolated worlds.
+//                // We can use either.
+//                world = frame._secondaryWorld;
+//            }
+//        }
+//        if (contextPayload.auxData && contextPayload.auxData['type'] === 'isolated')
+//            this._isolatedWorlds.add(contextPayload.name);
+//        /** @type {!ExecutionContext} */
+//    const context = new ExecutionContext(this._client, contextPayload, world);
+//        if (world)
+//            world._setContext(context);
+//        this._contextIdToContext.set(contextPayload.id, context);
     }
 
     @Override
@@ -196,7 +249,11 @@ public class FrameManager implements Frame.FrameListener {
     }
 
     @Override
-    public void onLifecycleEvent() {
+    public void onLifecycleEvent(JSONObject event) {
+        logger.debug("onLifecycleEvent: event={}", event);
+        Frame frame = mFrames.get(event.getString("frameId"));
+        if (Objects.isNull(frame)) return;
 
+        frame.proceedLifecycle(event.getString("loaderId"), event.getString("name"));
     }
 }

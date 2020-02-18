@@ -23,6 +23,7 @@ public class Frame {
     private CDPSession mSession;
     private FrameManager mFrameManager;
     private Set<Frame> mChildFrames = new HashSet<>();
+    private Set<String> mLifecycleEvents = new HashSet<>();
     private FrameInfo mFrameInfo;
 
 
@@ -79,6 +80,8 @@ public class Frame {
             throw new RequestException(errorText);
         }
 
+        mFrameManager.navigateFrame(this, url);
+
 //        {"result":{"frameId":"5BF35E2DDCE3A76E506283D505690927","loaderId":"B88468FB682EFF0E86F170FA2EC53E05"},"id":13,"sessionId":"552B9FEF3C4ECC110FEC21EDC6149EE2"}
 //        {"result":{"errorText":"net::ERR_ABORTED","frameId":"75521C56E71CBAB0B6106F596ADD4E99","loaderId":"65B60665621A7266D2125A476C94041F"},"id":13,"sessionId":"885EA32C6AD1C33EF8DC7BF40889ABCA"}
     }
@@ -98,6 +101,23 @@ public class Frame {
     }
 
     public void hover(/*selector*/) {
+    }
+
+    public void proceedLifecycle(String loaderId, String name) {
+        if (StringUtil.equals("init", name)) {
+            mFrameInfo.setLoaderId(loaderId);
+            mLifecycleEvents.clear();
+        }
+        mLifecycleEvents.add(name);
+    }
+
+    public void navigatedWithinDocument(String url) {
+        mFrameInfo.setUrl(url);
+    }
+
+    public void stopLoading() {
+        mLifecycleEvents.add("'DOMContentLoaded'");
+        mLifecycleEvents.add("'load'");
     }
 
     public void detach() {
@@ -318,18 +338,18 @@ public class Frame {
 
         void onFrameNavigated(FrameInfo frameInfo);
 
-        void onFrameNavigatedWithinDocument();
+        void onFrameNavigatedWithinDocument(JSONObject event);
 
-        void onFrameDetached();
+        void onFrameDetached(JSONObject event);
 
-        void onFrameStoppedLoading();
+        void onFrameStoppedLoading(JSONObject event);
 
-        void onExecutionContextCreated();
+        void onExecutionContextCreated(JSONObject context);
 
         void onExecutionContextDestroyed();
 
         void onExecutionContextsCleared();
 
-        void onLifecycleEvent();
+        void onLifecycleEvent(JSONObject event);
     }
 }
