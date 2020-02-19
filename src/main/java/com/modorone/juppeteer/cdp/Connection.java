@@ -254,7 +254,7 @@ public class Connection extends WebSocketListener {
             synchronized (mContinuationMap) {
                 Integer id = json.getInteger("id");
                 BlockingCell<String> blocker = mContinuationMap.remove(id);
-                if (blocker == null) {
+                if (Objects.isNull(blocker)) {
                     // Entry should have been removed if request timed out,
                     // log a warning nevertheless.
                     logger.warn("No outstanding request for correlation ID {}", id);
@@ -305,7 +305,7 @@ public class Connection extends WebSocketListener {
                 mFrameListener.onExecutionContextCreated(json.getJSONObject("params").getJSONObject("context"));
                 break;
             case RuntimeDomain.executionContextDestroyedEvent:
-                mFrameListener.onExecutionContextDestroyed();
+                mFrameListener.onExecutionContextDestroyed(json.getJSONObject("params").getInteger("executionContextId"));
                 break;
             case RuntimeDomain.executionContextsClearedEvent:
                 mFrameListener.onExecutionContextsCleared();

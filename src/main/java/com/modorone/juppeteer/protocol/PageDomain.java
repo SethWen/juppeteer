@@ -22,4 +22,6 @@ public interface PageDomain {
     String getFrameTreeCommand = "Page.getFrameTree";
     String setLifecycleEventsEnabledCommand = "Page.setLifecycleEventsEnabled";
     String navigateCommand = "Page.navigate";
+    String addScriptToEvaluateOnNewDocumentCommand = "Page.addScriptToEvaluateOnNewDocument";
+    String createIsolatedWorldCommand = "Page.createIsolatedWorld";
 }

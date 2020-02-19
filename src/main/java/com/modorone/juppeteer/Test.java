@@ -40,7 +40,14 @@ public class Test {
             Browser browser = Juppeteer.getInstance().launch(new Options());
             Page page = browser.getPages().get(0);
 //            page.setGeolocation(100, 50, 2);
-            page.navigate("https://www.baidu.com");
+//            page.navigate("https://www.baidu.com");
+
+            String pageFun = "(function(n) {\n" +
+                    "        console.log('content=' + n);\n" +
+                    "        return  n + 2;\n" +
+                    "    })(%d)";
+            int evaluate = (int) page.evaluate(String.format(pageFun, 5));
+            System.out.println("----->" + evaluate);
         } catch (Exception e) {
             e.printStackTrace();
         }

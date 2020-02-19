@@ -7,6 +7,7 @@ import com.modorone.juppeteer.protocol.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Objects;
 import java.util.concurrent.TimeoutException;
 
 /**
@@ -98,5 +99,9 @@ public class Page {
             put("accuracy", accuracy);
 
         }});
+    }
+
+    public Object evaluate(String pageFunction) throws TimeoutException, InterruptedException {
+        return mFrameManager.getMainFrame().evaluate(pageFunction);
     }
 }

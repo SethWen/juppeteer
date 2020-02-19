@@ -2,6 +2,7 @@ package com.modorone.juppeteer.component;
 
 import com.alibaba.fastjson.JSONObject;
 import com.alibaba.fastjson.annotation.JSONField;
+import com.modorone.juppeteer.cdp.BlockingCell;
 import com.modorone.juppeteer.cdp.CDPSession;
 import com.modorone.juppeteer.exception.RequestException;
 import com.modorone.juppeteer.protocol.PageDomain;
@@ -26,6 +27,9 @@ public class Frame {
     private Set<String> mLifecycleEvents = new HashSet<>();
     private FrameInfo mFrameInfo;
 
+    private DomWorld mMainWorld;
+    private DomWorld mSecondaryWorld;
+
 
     public Frame(CDPSession session, FrameManager frameManager, FrameInfo frameInfo) {
         mSession = session;
@@ -36,6 +40,10 @@ public class Frame {
         if (Objects.nonNull(parentFrame)) {
             getParentFrame().addChildFrame(this);
         }
+
+        // TODO: 2/19/20 timeoutSetting
+        mMainWorld = new DomWorld(frameManager, this, null);
+        mSecondaryWorld = new DomWorld(frameManager, this, null);
     }
 
     public FrameInfo getFrameInfo() {
@@ -157,17 +165,21 @@ public class Frame {
     public void waitForXPath(/*xpath, options*/) {
     }
 
-    public String getContent() {
+    public BlockingCell<ExecutionContext> getContentWaiter() {
 //        return this._mainWorld.content();
-        return "";
+        return mMainWorld.getContextWaiter();
     }
 
     public void setContent(String html) {
 //        return this._mainWorld.setContent(html);
     }
 
-    public void evaluate(/*pageFunction, ...args*/) {
-//        return this._mainWorld.evaluate(pageFunction, ...args);
+    public Object evaluate(String pageFunction) throws TimeoutException, InterruptedException {
+        return mMainWorld.evaluate(pageFunction);
+    }
+
+    public Object evaluateHandle(String pageFunction) throws TimeoutException, InterruptedException {
+        return mMainWorld.evaluateHandle(pageFunction);
     }
 
     public void $(/*selector*/) {
@@ -224,6 +236,14 @@ public class Frame {
 
     public String getUrl() {
         return "";
+    }
+
+    public DomWorld getMainWorld() {
+        return mMainWorld;
+    }
+
+    public DomWorld getSecondaryWorld() {
+        return mSecondaryWorld;
     }
 
     public static class FrameInfo {
@@ -346,7 +366,7 @@ public class Frame {
 
         void onExecutionContextCreated(JSONObject context);
 
-        void onExecutionContextDestroyed();
+        void onExecutionContextDestroyed(int executionContextId);
 
         void onExecutionContextsCleared();
 

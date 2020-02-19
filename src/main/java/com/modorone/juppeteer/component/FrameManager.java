@@ -1,6 +1,7 @@
 package com.modorone.juppeteer.component;
 
 import com.alibaba.fastjson.JSONObject;
+import com.modorone.juppeteer.Constants;
 import com.modorone.juppeteer.cdp.CDPSession;
 import com.modorone.juppeteer.component.network.NetworkManager;
 import com.modorone.juppeteer.component.network.Response;
@@ -10,7 +11,6 @@ import com.modorone.juppeteer.protocol.RuntimeDomain;
 import com.modorone.juppeteer.util.StringUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import sun.java2d.loops.XORComposite;
 
 import java.util.*;
 import java.util.concurrent.TimeoutException;
@@ -25,12 +25,17 @@ public class FrameManager implements Frame.FrameListener {
 
     private static final Logger logger = LoggerFactory.getLogger(FrameManager.class);
 
+    private static final String UTILITY_WORLD_NAME = "__juppeteer_utility_world__";
+
     private Map<String, Frame> mFrames = new HashMap<>();
+    private Map<Integer, ExecutionContext> mContexts = new HashMap<>();
     private CDPSession mSession;
     private Page mPage;
     private NetworkManager mNetWorkManager;
     private Frame mMainFrame;
     private LifecycleWatcher.LifecycleListener mLifecycleListener;
+    private Set<String> mIsolatedWorlds = new HashSet<>();
+
 
     public FrameManager(CDPSession session, Page page) {
         mSession = session;
@@ -47,7 +52,7 @@ public class FrameManager implements Frame.FrameListener {
             put("enabled", true);
         }});
         mSession.doCall(RuntimeDomain.enableCommand);
-        ensureIsolatedWorld("juppeteer_world"); // FIXME: 2/14/20
+        ensureIsolatedWorld(UTILITY_WORLD_NAME);
         mNetWorkManager.init();
     }
 
@@ -70,19 +75,24 @@ public class FrameManager implements Frame.FrameListener {
         }
     }
 
-    private void ensureIsolatedWorld(String name) {
-//        if (this._isolatedWorlds.has(name))
-//            return;
-//        this._isolatedWorlds.add(name);
-//        await this._client.send('Page.addScriptToEvaluateOnNewDocument', {
-//                source: `//# sourceURL=${EVALUATION_SCRIPT_URL}`,
-//        worldName: name,
-//    }),
-//        await Promise.all(this.frames().map(frame => this._client.send('Page.createIsolatedWorld', {
-//                frameId: frame._id,
-//                grantUniveralAccess: true,
-//                worldName: name,
-//    }).catch(debugError))); // frames might be removed before we send this
+    private void ensureIsolatedWorld(String name) throws TimeoutException {
+        if (mIsolatedWorlds.contains(name)) return;
+
+        mIsolatedWorlds.add(name);
+        mSession.doCall(PageDomain.addScriptToEvaluateOnNewDocumentCommand, new JSONObject() {{
+            put("source", Constants.EVALUATION_SCRIPT_URL);
+            put("worldName", name);
+        }});
+        mFrames.forEach((frameId, frame) -> {
+            try {
+                mSession.doCall(PageDomain.createIsolatedWorldCommand, new JSONObject() {{
+                    put("frameId", frameId);
+                    put("grantUniveralAccess", true);
+                    put("worldName", name);
+                }});
+            } catch (TimeoutException ignore) {
+            }
+        });
     }
 
 
@@ -201,51 +211,56 @@ public class FrameManager implements Frame.FrameListener {
     }
 
     @Override
-    public void onExecutionContextCreated(JSONObject context) {
-        logger.debug("onExecutionContextCreated: context={}", context);
+    public void onExecutionContextCreated(JSONObject contextPayload) {
+        logger.debug("onExecutionContextCreated: context={}", contextPayload);
+        // {"auxData":{"isDefault":true,"frameId":"4AA1B0CC31419133EBCE07FD94056608","type":"default"},"origin":"chrome-search://most-visited","name":"","id":4}
         String frameId = null;
-        JSONObject auxData = context.getJSONObject("auxData");
+        JSONObject auxData = contextPayload.getJSONObject("auxData");
         if (Objects.nonNull(auxData)) {
             frameId = auxData.getString("frameId");
         }
         Frame frame = mFrames.get(frameId);
-        String world;
+//        DomWorld world = frame.getMainWorld();
+        DomWorld world = null;
         if (Objects.nonNull(frame)) {
             if (Objects.nonNull(auxData) && auxData.getBoolean("isDefault")) {
-//                world = frame
-//            } else if (StringUtil.equals(context.getString("name"), "")) {
+                world = frame.getMainWorld();
+            } else if (StringUtil.equals(UTILITY_WORLD_NAME, contextPayload.getString("name"))
+                    && !frame.getSecondaryWorld().hasContext()) {
+                // In case of multiple sessions to the same target, there's a race between
+                // connections so we might end up creating multiple isolated worlds.
+                // We can use either.
+                world = frame.getSecondaryWorld();
             }
         }
-// const frameId = contextPayload.auxData ? contextPayload.auxData.frameId : null;
-//    const frame = this._frames.get(frameId) || null;
-//        let world = null;
-//        if (frame) {
-//            if (contextPayload.auxData && !!contextPayload.auxData['isDefault']) {
-//                world = frame._mainWorld;
-//            } else if (contextPayload.name === UTILITY_WORLD_NAME && !frame._secondaryWorld._hasContext()) {
-//                // In case of multiple sessions to the same target, there's a race between
-//                // connections so we might end up creating multiple isolated worlds.
-//                // We can use either.
-//                world = frame._secondaryWorld;
-//            }
-//        }
-//        if (contextPayload.auxData && contextPayload.auxData['type'] === 'isolated')
-//            this._isolatedWorlds.add(contextPayload.name);
-//        /** @type {!ExecutionContext} */
-//    const context = new ExecutionContext(this._client, contextPayload, world);
-//        if (world)
-//            world._setContext(context);
-//        this._contextIdToContext.set(contextPayload.id, context);
+
+        if (Objects.nonNull(auxData) && StringUtil.equals("isolated", auxData.getString("type"))) {
+            mIsolatedWorlds.add(contextPayload.getString("name"));
+        }
+
+        ExecutionContext context = new ExecutionContext(mSession, world, contextPayload);
+        // world = null??!! fixme
+        if (Objects.nonNull(world)) world.setContext(context);
+        mContexts.put(contextPayload.getInteger("id"), context);
     }
 
     @Override
-    public void onExecutionContextDestroyed() {
+    public void onExecutionContextDestroyed(int executionContextId) {
+        ExecutionContext context = mContexts.get(executionContextId);
+        if (Objects.isNull(context)) return;
 
+        mContexts.remove(executionContextId);
+        if (Objects.nonNull(context.getWorld())) context.getWorld().setContext(null);
     }
 
     @Override
     public void onExecutionContextsCleared() {
-
+        mContexts.forEach((contextId, context) -> {
+            if (Objects.nonNull(context.getWorld())) {
+                context.getWorld().setContext(null);
+            }
+        });
+        mContexts.clear();
     }
 
     @Override

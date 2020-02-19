@@ -15,4 +15,5 @@ public interface RuntimeDomain {
     
     // command
     String enableCommand = "Runtime.enable";
+    String evaluateCommand = "Runtime.evaluate";
 }

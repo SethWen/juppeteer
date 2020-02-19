@@ -1,9 +1,16 @@
 package com.modorone.juppeteer.component;
 
 import com.alibaba.fastjson.JSONObject;
+import com.modorone.juppeteer.Constants;
+import com.modorone.juppeteer.Juppeteer;
 import com.modorone.juppeteer.cdp.CDPSession;
+import com.modorone.juppeteer.exception.JuppeteerException;
+import com.modorone.juppeteer.protocol.RuntimeDomain;
+import com.modorone.juppeteer.util.StringUtil;
 
+import java.math.BigInteger;
 import java.util.Objects;
+import java.util.concurrent.TimeoutException;
 
 /**
  * author: Shawn
@@ -13,15 +20,14 @@ import java.util.Objects;
  */
 public class ExecutionContext {
 
-    private static final String EVALUATION_SCRIPT_URL = "__juppeteer_evaluation_script__";
     private CDPSession mSession;
     private DomWorld mWorld;
-    private String mContextId;
+    private int mContextId;
 
     public ExecutionContext(CDPSession session, DomWorld world, JSONObject contextPayload) {
         mSession = session;
         mWorld = world;
-        mContextId = contextPayload.getString("id");
+        mContextId = contextPayload.getInteger("id");
     }
 
     public Frame getFrame() {
@@ -32,106 +38,61 @@ public class ExecutionContext {
         }
     }
 
-    public void evaluate() {
-
+    public DomWorld getWorld() {
+        return mWorld;
     }
 
-    private void evaluateInternal() {
-        String suffix = "//# sourceURL=" + EVALUATION_SCRIPT_URL;
+    public void setWorld(DomWorld world) {
+        mWorld = world;
     }
 
-//    async _evaluateInternal(returnByValue, pageFunction, ...args) {
-//    const suffix = `//# sourceURL=${EVALUATION_SCRIPT_URL}`;
-//
-//        if (helper.isString(pageFunction)) {
-//      const contextId = this._contextId;
-//      const expression = /** @type {string} */ (pageFunction);
-//      const expressionWithSourceUrl = SOURCE_URL_REGEX.test(expression) ? expression : expression + '\n' + suffix;
-//      const {exceptionDetails, result: remoteObject} = await this._client.send('Runtime.evaluate', {
-//                    expression: expressionWithSourceUrl,
-//                    contextId,
-//                    returnByValue,
-//                    awaitPromise: true,
-//                    userGesture: true
-//      }).catch(rewriteError);
-//            if (exceptionDetails)
-//                throw new Error('Evaluation failed: ' + helper.getExceptionMessage(exceptionDetails));
-//            return returnByValue ? helper.valueFromRemoteObject(remoteObject) : createJSHandle(this, remoteObject);
-//        }
-//
-//        if (typeof pageFunction !== 'function')
-//        throw new Error(`Expected to get |string| or |function| as the first argument, but got "${pageFunction}" instead.`);
-//
-//        let functionText = pageFunction.toString();
-//        try {
-//            new Function('(' + functionText + ')');
-//        } catch (e1) {
-//            // This means we might have a function shorthand. Try another
-//            // time prefixing 'function '.
-//            if (functionText.startsWith('async '))
-//                functionText = 'async function ' + functionText.substring('async '.length);
-//            else
-//                functionText = 'function ' + functionText;
-//            try {
-//                new Function('(' + functionText  + ')');
-//            } catch (e2) {
-//                // We tried hard to serialize, but there's a weird beast here.
-//                throw new Error('Passed function is not well-serializable!');
-//            }
-//        }
-//        let callFunctionOnPromise;
-//        try {
-//            callFunctionOnPromise = this._client.send('Runtime.callFunctionOn', {
-//                    functionDeclaration: functionText + '\n' + suffix + '\n',
-//                    executionContextId: this._contextId,
-//                    arguments: args.map(convertArgument.bind(this)),
-//                    returnByValue,
-//                    awaitPromise: true,
-//                    userGesture: true
-//      });
-//        } catch (err) {
-//            if (err instanceof TypeError && err.message.startsWith('Converting circular structure to JSON'))
-//                err.message += ' Are you passing a nested JSHandle?';
-//            throw err;
-//        }
-//    const { exceptionDetails, result: remoteObject } = await callFunctionOnPromise.catch(rewriteError);
-//        if (exceptionDetails)
-//            throw new Error('Evaluation failed: ' + helper.getExceptionMessage(exceptionDetails));
-//        return returnByValue ? helper.valueFromRemoteObject(remoteObject) : createJSHandle(this, remoteObject);
-//
-//        /**
-//         * @param {*} arg
-//         * @return {*}
-//         * @this {ExecutionContext}
-//         */
-//        function convertArgument(arg) {
-//        if (typeof arg === 'bigint') // eslint-disable-line valid-typeof
-//        return { unserializableValue: `${arg.toString()}n` };
-//        if (Object.is(arg, -0))
-//            return { unserializableValue: '-0' };
-//        if (Object.is(arg, Infinity))
-//            return { unserializableValue: 'Infinity' };
-//        if (Object.is(arg, -Infinity))
-//            return { unserializableValue: '-Infinity' };
-//        if (Object.is(arg, NaN))
-//            return { unserializableValue: 'NaN' };
-//      const objectHandle = arg && (arg instanceof JSHandle) ? arg : null;
-//        if (objectHandle) {
-//            if (objectHandle._context !== this)
-//                throw new Error('JSHandles can be evaluated only in the context they were created!');
-//            if (objectHandle._disposed)
-//                throw new Error('JSHandle is disposed!');
-//            if (objectHandle._remoteObject.unserializableValue)
-//                return { unserializableValue: objectHandle._remoteObject.unserializableValue };
-//            if (!objectHandle._remoteObject.objectId)
-//                return { value: objectHandle._remoteObject.value };
-//            return { objectId: objectHandle._remoteObject.objectId };
-//        }
-//        return { value: arg };
+    public Object evaluate(String pageFunction) throws TimeoutException {
+        return evaluateInternal(true, pageFunction);
+    }
 
-//    constructor(client, contextPayload, world) {
-//        this._client = client;
-//        this._world = world;
-//        this._contextId = contextPayload.id;
-//    }
+    public Object evaluateHandle(String pageFunction) throws TimeoutException {
+        return evaluateInternal(false, pageFunction);
+    }
+
+    private Object evaluateInternal(boolean returnByValue, String pageFunction) throws TimeoutException {
+        String suffix = "\n" + Constants.EVALUATION_SCRIPT_URL;
+        String expression = (pageFunction + suffix);
+        System.out.println("fun: " + expression);
+        JSONObject json = mSession.doCall(RuntimeDomain.evaluateCommand, new JSONObject() {{
+            put("expression", expression);
+            put("contextId", mContextId);
+            put("returnByValue", returnByValue);
+            put("awaitPromise", true);
+            put("userGesture", true);
+        }});
+        return parseValueFromRemoteObject(json.getJSONObject("result").getJSONObject("result"));
+
+        // TODO: 2/19/20
+        // run Runtime.
+    }
+
+    // {"type":"number","value":7,"description":"7"}
+    private Object parseValueFromRemoteObject(JSONObject remoteObject) {
+        if (!StringUtil.isEmpty(remoteObject.getString("objectId"))) {
+            throw new JuppeteerException("Cannot extract value when objectId is given");
+        }
+
+        String unserializableValue = remoteObject.getString("unserializableValue");
+        if (!StringUtil.isEmpty(unserializableValue)) {
+            if (StringUtil.equals("bigint", remoteObject.getString("type"))) {
+                return new BigInteger(unserializableValue.replace("n", ""));
+            }
+
+            switch (unserializableValue) {
+                case "-0":
+                    return 0;
+                case "NaN":
+                case "Infinity":
+                case "-Infinity":
+                default:
+                    throw new JuppeteerException("Unsupported unserializable value: " + unserializableValue);
+            }
+        }
+        return remoteObject.get("value");
+    }
 }
