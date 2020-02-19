@@ -16,4 +16,7 @@ public interface RuntimeDomain {
     // command
     String enableCommand = "Runtime.enable";
     String evaluateCommand = "Runtime.evaluate";
+    String getPropertiesCommand = "Runtime.getProperties";
+    String releaseObjectCommand = "Runtime.releaseObject";
+    String callFunctionOnCommand = "Runtime.callFunctionOn";
 }

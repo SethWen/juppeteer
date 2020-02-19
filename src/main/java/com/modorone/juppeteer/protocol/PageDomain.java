@@ -24,4 +24,5 @@ public interface PageDomain {
     String navigateCommand = "Page.navigate";
     String addScriptToEvaluateOnNewDocumentCommand = "Page.addScriptToEvaluateOnNewDocument";
     String createIsolatedWorldCommand = "Page.createIsolatedWorld";
+    String getLayoutMetricsCommand = "Page.getLayoutMetrics";
 }

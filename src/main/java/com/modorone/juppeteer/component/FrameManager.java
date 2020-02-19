@@ -56,6 +56,10 @@ public class FrameManager implements Frame.FrameListener {
         mNetWorkManager.init();
     }
 
+    public Page getPage() {
+        return mPage;
+    }
+
     public void setLifecycleListener(LifecycleWatcher.LifecycleListener listener) {
         mLifecycleListener = listener;
     }

@@ -246,6 +246,10 @@ public class Frame {
         return mSecondaryWorld;
     }
 
+    public FrameManager getFrameManager() {
+        return mFrameManager;
+    }
+
     public static class FrameInfo {
 
         /**

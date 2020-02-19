@@ -7,7 +7,6 @@ import com.modorone.juppeteer.protocol.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Objects;
 import java.util.concurrent.TimeoutException;
 
 /**
@@ -23,6 +22,7 @@ public class Page {
     private String mUrl;
     private CDPSession mSession;
     private FrameManager mFrameManager;
+    private boolean mJavascriptEnabled = true;
 
     public static Page create(CDPSession session) throws TimeoutException {
         Page page = new Page(session);
@@ -81,6 +81,19 @@ public class Page {
         return frame;
     }
 
+    public boolean isJavascriptEnabled() {
+        return mJavascriptEnabled;
+    }
+
+    public void setJavaScriptEnabled(boolean enabled) throws TimeoutException {
+        if (mJavascriptEnabled == enabled) return;
+
+        mJavascriptEnabled = enabled;
+        mSession.doCall(EmulationDomain.setScriptExecutionDisabledCommand, new JSONObject(){{
+            put("value", !enabled);
+        }});
+    }
+
     public void navigate(String url) throws TimeoutException {
         mFrameManager.getMainFrame().navigate(url);
     }
@@ -103,5 +116,9 @@ public class Page {
 
     public Object evaluate(String pageFunction) throws TimeoutException, InterruptedException {
         return mFrameManager.getMainFrame().evaluate(pageFunction);
+    }
+
+    public Object evaluateHandle(String pageFunction) throws TimeoutException, InterruptedException {
+        return mFrameManager.getMainFrame().evaluateHandle(pageFunction);
     }
 }

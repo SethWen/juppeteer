@@ -38,6 +38,10 @@ public class ExecutionContext {
         }
     }
 
+    public CDPSession getSession() {
+        return mSession;
+    }
+
     public DomWorld getWorld() {
         return mWorld;
     }
@@ -65,34 +69,13 @@ public class ExecutionContext {
             put("awaitPromise", true);
             put("userGesture", true);
         }});
-        return parseValueFromRemoteObject(json.getJSONObject("result").getJSONObject("result"));
+        if (returnByValue) {
+            return Helper.parseValueFromRemoteObject(json.getJSONObject("result").getJSONObject("result"));
+        } else {
+            return JSHandle.create(this, json.getJSONObject("result").getJSONObject("result"));
+        }
 
         // TODO: 2/19/20
         // run Runtime.
-    }
-
-    // {"type":"number","value":7,"description":"7"}
-    private Object parseValueFromRemoteObject(JSONObject remoteObject) {
-        if (!StringUtil.isEmpty(remoteObject.getString("objectId"))) {
-            throw new JuppeteerException("Cannot extract value when objectId is given");
-        }
-
-        String unserializableValue = remoteObject.getString("unserializableValue");
-        if (!StringUtil.isEmpty(unserializableValue)) {
-            if (StringUtil.equals("bigint", remoteObject.getString("type"))) {
-                return new BigInteger(unserializableValue.replace("n", ""));
-            }
-
-            switch (unserializableValue) {
-                case "-0":
-                    return 0;
-                case "NaN":
-                case "Infinity":
-                case "-Infinity":
-                default:
-                    throw new JuppeteerException("Unsupported unserializable value: " + unserializableValue);
-            }
-        }
-        return remoteObject.get("value");
     }
 }

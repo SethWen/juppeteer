@@ -4,4 +4,5 @@ public interface EmulationDomain {
 
     // command
     String setGeolocationOverrideCommand = "Emulation.setGeolocationOverride";
+    String setScriptExecutionDisabledCommand = "Emulation.setScriptExecutionDisabled";
 }
