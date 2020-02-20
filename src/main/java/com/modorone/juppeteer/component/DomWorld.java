@@ -1,6 +1,8 @@
 package com.modorone.juppeteer.component;
 
+import com.alibaba.fastjson.JSONObject;
 import com.modorone.juppeteer.cdp.BlockingCell;
+import com.modorone.juppeteer.exception.ElementNotFoundException;
 import com.modorone.juppeteer.exception.JuppeteerException;
 
 import java.util.HashSet;
@@ -23,9 +25,26 @@ public class DomWorld {
     private boolean mDetached;
     private Set<WaitTask> mWaitTasks = new HashSet<>();
 
-    private BlockingCell<String> mDocumentWaiter;
+    private JSHandle.ElementHandle mDocument;
     private BlockingCell<ExecutionContext> mContextWaiter;
     private boolean mHasContext = false;
+
+//    constructor(frameManager, frame, timeoutSettings) {
+//        this._frameManager = frameManager;
+//        this._frame = frame;
+//        this._timeoutSettings = timeoutSettings;
+//
+//        /** @type {?Promise<!Puppeteer.ElementHandle>} */
+//        this._documentPromise = null;
+//        /** @type {!Promise<!Puppeteer.ExecutionContext>} */
+//        this._contextPromise;
+//        this._contextResolveCallback = null;
+//        this._setContext(null);
+//
+//        /** @type {!Set<!WaitTask>} */
+//        this._waitTasks = new Set();
+//        this._detached = false;
+//    }
 
 
     public DomWorld(FrameManager frameManager, Frame frame, String timeoutSetting) {
@@ -44,7 +63,7 @@ public class DomWorld {
                 waitTask.rerun();
             }
         } else {
-            mDocumentWaiter = null;
+            mDocument = null;
             mContextWaiter = new BlockingCell<>();
             mHasContext = false;
         }
@@ -62,6 +81,13 @@ public class DomWorld {
         return mFrame;
     }
 
+    private JSHandle.ElementHandle geDocument() throws InterruptedException, TimeoutException {
+        if (Objects.nonNull(mDocument)) return mDocument;
+        JSHandle.ElementHandle document = (JSHandle.ElementHandle) getContextWaiter().get().evaluateCodeBlock4Handle("document");
+        mDocument = document;
+        return document;
+    }
+
     public boolean hasContext() {
         return mHasContext;
     }
@@ -77,31 +103,41 @@ public class DomWorld {
 //        waitTask.terminate(new Error('waitForFunction failed: frame got detached.'));
     }
 
-    public Object evaluateHandle(String pageFunction) throws InterruptedException, TimeoutException {
-        return getContextWaiter().get().evaluateHandle(pageFunction);
+    public Object evaluateCodeBlock4Value(String pageFunction) throws InterruptedException, TimeoutException {
+        return getContextWaiter().get().evaluateCodeBlock4Value(pageFunction);
     }
 
-    public Object evaluate(String pageFunction) throws InterruptedException, TimeoutException {
-        return getContextWaiter().get().evaluate(pageFunction);
+    public Object evaluateCodeBlock4Handle(String pageFunction) throws InterruptedException, TimeoutException {
+        return getContextWaiter().get().evaluateCodeBlock4Handle(pageFunction);
     }
 
+    public Object evaluateFunction4Value(String pageFunction, Object... args) throws InterruptedException, TimeoutException {
+        return getContextWaiter().get().evaluateFunction4Value(pageFunction, args);
+    }
 
-//    constructor(frameManager, frame, timeoutSettings) {
-//        this._frameManager = frameManager;
-//        this._frame = frame;
-//        this._timeoutSettings = timeoutSettings;
-//
-//        /** @type {?Promise<!Puppeteer.ElementHandle>} */
-//        this._documentPromise = null;
-//        /** @type {!Promise<!Puppeteer.ExecutionContext>} */
-//        this._contextPromise;
-//        this._contextResolveCallback = null;
-//        this._setContext(null);
-//
-//        /** @type {!Set<!WaitTask>} */
-//        this._waitTasks = new Set();
-//        this._detached = false;
-//    }
+    public Object evaluateFunction4Handle(String pageFunction, Object... args) throws InterruptedException, TimeoutException {
+        return getContextWaiter().get().evaluateFunction4Handle(pageFunction, args);
+    }
+
+    public void hover(String selector) throws TimeoutException, InterruptedException, ElementNotFoundException {
+        JSHandle.ElementHandle elem = $(selector);
+        if (Objects.isNull(elem)) throw new ElementNotFoundException("No node found for selector: " + selector);
+        elem.hover();
+        elem.dispose();
+    }
+
+    public void click(String selector, JSONObject options) throws TimeoutException, InterruptedException, ElementNotFoundException {
+        JSHandle.ElementHandle elem = $(selector);
+        if (Objects.isNull(elem)) throw new ElementNotFoundException("No node found for selector: " + selector);
+        elem.click(options);
+        elem.dispose();
+    }
+
+    public JSHandle.ElementHandle $(String selector) throws TimeoutException, InterruptedException {
+        JSHandle.ElementHandle document = geDocument();
+        return document.$(selector);
+    }
+
 
     private static class WaitTask {
 
@@ -121,7 +157,7 @@ public class DomWorld {
             boolean success;
             String error;
             try {
-                Object o = mWorld.getContextWaiter().get().evaluateHandle("");
+                Object o = mWorld.getContextWaiter().get().evaluateCodeBlock4Handle("");
             } catch (TimeoutException | InterruptedException e) {
                 e.printStackTrace();
             }

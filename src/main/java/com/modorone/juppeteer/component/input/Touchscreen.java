@@ -37,7 +37,7 @@ public class Touchscreen {
                     put("y", y);
                 }});
             }});
-            put("modifiers", ""); // todo
+            put("modifiers", mKeyboard.getModifiers());
         }});
     }
 
@@ -45,7 +45,7 @@ public class Touchscreen {
         mSession.doCall(InputDomain.dispatchTouchEventCommand, new JSONObject() {{
             put("type", "touchEnd");
             put("touchPoints", new JSONArray());
-            put("modifiers", ""); // todo
+            put("modifiers", mKeyboard.getModifiers());
         }});
     }
 
@@ -57,7 +57,7 @@ public class Touchscreen {
         int steps = options.getInteger("steps");
         if (steps < 1) steps = 1;
 
-        for (int i = 0; i < steps; i++) {
+        for (int i = 1; i <= steps; i++) {
             int finalI = i;
             int finalSteps = steps;
             mSession.doCall(InputDomain.dispatchTouchEventCommand, new JSONObject() {{
@@ -68,7 +68,7 @@ public class Touchscreen {
                         put("y", fromY + (mY - fromY) * (finalI / finalSteps));
                     }});
                 }});
-//                put("modifiers", ""); // todo
+                put("modifiers", mKeyboard.getModifiers());
             }});
         }
     }

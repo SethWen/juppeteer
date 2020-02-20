@@ -1,14 +1,14 @@
 package com.modorone.juppeteer.component;
 
+import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.modorone.juppeteer.Constants;
-import com.modorone.juppeteer.Juppeteer;
 import com.modorone.juppeteer.cdp.CDPSession;
+import com.modorone.juppeteer.exception.JSEvaluationException;
 import com.modorone.juppeteer.exception.JuppeteerException;
 import com.modorone.juppeteer.protocol.RuntimeDomain;
 import com.modorone.juppeteer.util.StringUtil;
 
-import java.math.BigInteger;
 import java.util.Objects;
 import java.util.concurrent.TimeoutException;
 
@@ -50,17 +50,17 @@ public class ExecutionContext {
         mWorld = world;
     }
 
-    public Object evaluate(String pageFunction) throws TimeoutException {
-        return evaluateInternal(true, pageFunction);
+    public Object evaluateCodeBlock4Value(String jsCodeBlock) throws TimeoutException {
+        return evaluateCodeBlock(true, jsCodeBlock);
     }
 
-    public Object evaluateHandle(String pageFunction) throws TimeoutException {
-        return evaluateInternal(false, pageFunction);
+    public Object evaluateCodeBlock4Handle(String jsCodeBlock) throws TimeoutException {
+        return evaluateCodeBlock(false, jsCodeBlock);
     }
 
-    private Object evaluateInternal(boolean returnByValue, String pageFunction) throws TimeoutException {
-        String suffix = "\n" + Constants.EVALUATION_SCRIPT_URL;
-        String expression = (pageFunction + suffix);
+    private Object evaluateCodeBlock(boolean returnByValue, String jsCodeBlock) throws TimeoutException {
+        String suffix = "\n" + Constants.EVALUATION_SCRIPT_URL + "\n";
+        String expression = (jsCodeBlock + suffix);
         System.out.println("fun: " + expression);
         JSONObject json = mSession.doCall(RuntimeDomain.evaluateCommand, new JSONObject() {{
             put("expression", expression);
@@ -68,14 +68,77 @@ public class ExecutionContext {
             put("returnByValue", returnByValue);
             put("awaitPromise", true);
             put("userGesture", true);
-        }});
+        }}).getJSONObject("result");
         if (returnByValue) {
-            return Helper.parseValueFromRemoteObject(json.getJSONObject("result").getJSONObject("result"));
+            return Helper.parseValueFromRemoteObject(json.getJSONObject("result"));
         } else {
-            return JSHandle.create(this, json.getJSONObject("result").getJSONObject("result"));
+            return JSHandle.create(this, json.getJSONObject("result"));
+        }
+    }
+
+    public Object evaluateFunction4Value(String pageFunction, Object... args) throws TimeoutException {
+        return evaluateFunction(pageFunction, true, args);
+    }
+
+    public Object evaluateFunction4Handle(String pageFunction, Object... args) throws TimeoutException {
+        return evaluateFunction(pageFunction, false, args);
+    }
+
+    private Object evaluateFunction(String pageFunction, boolean returnByValue, Object... args) throws TimeoutException {
+        String suffix = "\n" + Constants.EVALUATION_SCRIPT_URL + "\n";
+        pageFunction += suffix;
+        System.out.println("pageFunction: \n" + pageFunction);
+
+        JSONArray arguments = new JSONArray();
+        for (Object arg : args) {
+            if (Objects.nonNull(arg) && arg instanceof JSHandle) {
+                JSHandle handle = (JSHandle) arg;
+                if (handle.getContext() != this)
+                    throw new JuppeteerException("JSHandle can be evaluated only in the context they were created!");
+                if (handle.isDisposed()) throw new JuppeteerException("JSHandle is disposed!");
+
+                if (StringUtil.nonEmpty(handle.getRemoteObject().getString("unserializableValue"))) {
+                    arguments.add(new JSONObject() {{
+                        put("unserializableValue", handle.getRemoteObject().getString("unserializableValue"));
+                    }});
+                    break;
+                }
+
+                if (StringUtil.isEmpty(handle.getRemoteObject().getString("objectId"))) {
+                    arguments.add(new JSONObject() {{
+                        put("value", handle.getRemoteObject().getString("value"));
+                    }});
+                    break;
+                }
+
+                arguments.add(new JSONObject() {{
+                    put("objectId", handle.getRemoteObject().getString("objectId"));
+                }});
+            } else {
+                arguments.add(new JSONObject(){{
+                    put("value", arg);
+                }});
+            }
         }
 
-        // TODO: 2/19/20
-        // run Runtime.
+        String functionText = pageFunction;
+        JSONObject json = mSession.doCall(RuntimeDomain.callFunctionOnCommand, new JSONObject() {{
+            put("functionDeclaration", functionText);
+            put("executionContextId", mContextId);
+            put("arguments", arguments);
+            put("returnByValue", returnByValue);
+            put("awaitPromise", true);
+            put("userGesture", true);
+        }}).getJSONObject("result");
+        JSONObject exceptionDetails = json.getJSONObject("exceptionDetails");
+        if (Objects.nonNull(exceptionDetails)) {
+            throw new JSEvaluationException("Evaluation failed: " + exceptionDetails.toJSONString());
+        }
+
+        if (returnByValue) {
+            return Helper.parseValueFromRemoteObject(json.getJSONObject("result"));
+        } else {
+            return JSHandle.create(this, json.getJSONObject("result"));
+        }
     }
 }

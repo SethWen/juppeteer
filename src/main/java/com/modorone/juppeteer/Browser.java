@@ -40,7 +40,7 @@ public class Browser {
 
         @Override
         public void onCreate(Target.TargetInfo targetInfo, Supplier<CDPSession> sessionSupplier) {
-            Target target = Target.create(targetInfo, sessionSupplier);
+            Target target = Target.create(Browser.this, targetInfo, sessionSupplier);
             mTargets.put(targetInfo.getTargetId(), target);
             logger.debug("onCreate: targets={}", mTargets);
         }

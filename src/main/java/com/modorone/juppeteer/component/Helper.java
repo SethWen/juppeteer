@@ -50,7 +50,8 @@ public class Helper {
                 case "Infinity":
                 case "-Infinity":
                 default:
-                    throw new JuppeteerException("Unsupported unserializable value: " + unserializableValue);
+                    return null;
+//                    throw new JuppeteerException("Unsupported unserializable value: " + unserializableValue);
             }
         }
         return remoteObject.get("value");

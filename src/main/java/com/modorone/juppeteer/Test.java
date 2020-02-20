@@ -37,19 +37,19 @@ public class Test {
     public static void main(String[] args) {
         logger.info("main: ={}", "start...");
 
-        JSONArray objects = new JSONArray(){{
-            add("");
-            add("");
-            add("");
-            add("");
-        }};
+//        JSONArray objects = new JSONArray(){{
+//            add("");
+//            add("");
+//            add("");
+//            add("");
+//        }};
 
-//        try {
-//            Browser browser = Juppeteer.getInstance().launch(new Options());
-//            Page page = browser.getPages().get(0);
-////            page.setGeolocation(100, 50, 2);
-////            page.navigate("https://www.baidu.com");
-//
+        try {
+            Browser browser = Juppeteer.getInstance().launch(new Options());
+            Page page = browser.getPages().get(0);
+//            page.setGeolocation(100, 50, 2);
+//            page.navigate("https://www.baidu.com");
+
 //            String pageFun = "(function(n) {\n" +
 //                    "        console.log('content=' + n);\n" +
 //                    "        return  n + 2;\n" +
@@ -59,13 +59,23 @@ public class Test {
 //                    "        console.log('content=' + n);\n" +
 //                    "        return  n + 2;\n" +
 //                    "    })(%d)";
-//            int evaluate = (int) page.evaluate(String.format(pageFun, 5));
-//            System.out.println("----->" + evaluate);
+//            String pageFun3 = "function(n, m) {\n" +
+//                    "        console.log('content=' + n);\n" +
+//                    "        return  n + m;\n" +
+//                    "    }";
+//            int e1 = (int) page.evaluateCodeBlock4Value(String.format(pageFun, 5));
+//            System.out.println("-----e1----->" + e1);
+//
+//            int e2 = (int) page.evaluateFunction4Value(pageFun3, 4, 8);
+//            System.out.println("-----e2----->" + e2);
+
+//            page.hover("#fakebox-microphone");
+            page.click("#fakebox-microphone", new JSONObject());
+
 //            Object o = page.evaluateHandle(String.format(pageFun, 3));
-//            System.out.println("----->" + o);
-//        } catch (Exception e) {
-//            e.printStackTrace();
-//        }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
 
 //        String reply = "{\"id\":1,\"result\":{\"targetInfos\":[{\"targetId\":\"D0D5C7EE9534839C03E5C2C530A887E6\",\"type\":\"page\",\"title\":\"New Tab\",\"url\":\"chrome://newtab/\",\"attached\":false,\"browserContextId\":\"EC1A9D09DA184048EB30105E32E22B57\"}]}} ";
 //        JSONObject json = JSON.parseObject(reply);

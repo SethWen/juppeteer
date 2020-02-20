@@ -108,7 +108,12 @@ public class Frame {
 //        return this._mainWorld.focus(selector);
     }
 
-    public void hover(/*selector*/) {
+    public void hover(String selector) throws TimeoutException, InterruptedException {
+        mSecondaryWorld.hover(selector);
+    }
+
+    public void click(String selector, JSONObject options) throws TimeoutException, InterruptedException {
+        mSecondaryWorld.click(selector, options);
     }
 
     public void proceedLifecycle(String loaderId, String name) {
@@ -174,12 +179,20 @@ public class Frame {
 //        return this._mainWorld.setContent(html);
     }
 
-    public Object evaluate(String pageFunction) throws TimeoutException, InterruptedException {
-        return mMainWorld.evaluate(pageFunction);
+    public Object evaluateCodeBlock4Value(String pageFunction) throws TimeoutException, InterruptedException {
+        return mMainWorld.evaluateCodeBlock4Value(pageFunction);
     }
 
-    public Object evaluateHandle(String pageFunction) throws TimeoutException, InterruptedException {
-        return mMainWorld.evaluateHandle(pageFunction);
+    public Object evaluateCodeBlock4Handle(String pageFunction) throws TimeoutException, InterruptedException {
+        return mMainWorld.evaluateCodeBlock4Handle(pageFunction);
+    }
+
+    public Object evaluateFunction4Value(String pageFunction, Object... args) throws TimeoutException, InterruptedException {
+        return mMainWorld.evaluateFunction4Value(pageFunction, args);
+    }
+
+    public Object evaluateFunction4Handle(String pageFunction, Object... args) throws TimeoutException, InterruptedException {
+        return mMainWorld.evaluateFunction4Handle(pageFunction, args);
     }
 
     public void $(/*selector*/) {
@@ -235,6 +248,10 @@ public class Frame {
     }
 
     public String getUrl() {
+        return "";
+    }
+
+    public String getContent() {
         return "";
     }
 

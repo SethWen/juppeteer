@@ -11,7 +11,7 @@ import com.modorone.juppeteer.util.StringUtil;
 
 import java.util.*;
 import java.util.concurrent.TimeoutException;
-import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * author: Shawn
@@ -25,10 +25,6 @@ public class JSHandle {
     protected CDPSession mSession;
     protected JSONObject mRemoteObject;
     protected boolean mDisposed;
-//     this._context = context;
-//    this._client = client;
-//    this._remoteObject = remoteObject;
-//    this._disposed = false;
 
     public static JSHandle create(ExecutionContext context, JSONObject remoteObject) {
         Frame frame = context.getFrame();
@@ -49,12 +45,24 @@ public class JSHandle {
         return mContext;
     }
 
-    public Object evaluate(String pageFunction) throws TimeoutException {
-        return mContext.evaluate(pageFunction);
+    public JSONObject getRemoteObject() {
+        return mRemoteObject;
     }
 
-    public JSHandle evaluateHandle(String pageFunction) throws TimeoutException {
-        return (JSHandle) mContext.evaluateHandle(pageFunction);
+    public Object evaluateCodeBlock4Value(String pageFunction) throws TimeoutException {
+        return mContext.evaluateCodeBlock4Value(pageFunction);
+    }
+
+    public JSHandle evaluateCodeBlock4Handle(String pageFunction) throws TimeoutException {
+        return (JSHandle) mContext.evaluateCodeBlock4Handle(pageFunction);
+    }
+
+    public Object evaluateFunction4Value(String pageFunction, Object... args) throws TimeoutException {
+        return mContext.evaluateFunction4Value(pageFunction, args);
+    }
+
+    public JSHandle evaluateFunction4Handle(String pageFunction, Object... args) throws TimeoutException {
+        return (JSHandle) mContext.evaluateFunction4Handle(pageFunction, args);
     }
 
     public Object getJsonValue() {
@@ -118,6 +126,10 @@ public class JSHandle {
         Helper.releaseObject(mSession, mRemoteObject.getString("objectId"));
     }
 
+    public boolean isDisposed() {
+        return mDisposed;
+    }
+
     @Override
     public String toString() {
         if (StringUtil.isEmpty(mRemoteObject.getString("objectId"))) {
@@ -132,11 +144,13 @@ public class JSHandle {
     public static class ElementHandle extends JSHandle {
 
         private FrameManager mFrameManager;
+        private Page mPage;
 
 
         public ElementHandle(ExecutionContext context, CDPSession session, JSONObject remoteObject, FrameManager frameManager) {
             super(context, session, remoteObject);
             mFrameManager = frameManager;
+            mPage = mFrameManager.getPage();
         }
 
         @Override
@@ -153,7 +167,7 @@ public class JSHandle {
         }
 
         private void scrollIntoViewIfNeeded() throws TimeoutException {
-            String fn = "(async(element, pageJavascriptEnabled) => {\n" +
+            String fn = "async(element, pageJavascriptEnabled) => {\n" +
                     "    if (!element.isConnected)\n" +
                     "        return 'Node is detached from document';\n" +
                     "    if (element.nodeType !== Node.ELEMENT_NODE)\n" +
@@ -173,80 +187,86 @@ public class JSHandle {
                     "    if (visibleRatio !== 1.0)\n" +
                     "        element.scrollIntoView({block: 'center', inline: 'center', behavior: 'instant'});\n" +
                     "    return false;\n" +
-                    "})(%b)";
-            Object result = evaluate(String.format(fn, mFrameManager.getPage().isJavascriptEnabled()));
+                    "}";
+            Object result = evaluateFunction4Value(fn, this, mFrameManager.getPage().isJavascriptEnabled());
             if (result instanceof String) throw new JuppeteerException((String) result);
         }
 
         private Map<String, Integer> clickablePoint() throws TimeoutException {
+            // {"quads":[[1196.5,294,1220.5,294,1220.5,338,1196.5,338]]}
             JSONObject content = mSession.doCall(DOMDomain.getContentQuadsCommand, new JSONObject() {{
                 put("objectId", mRemoteObject.getString("objectId"));
             }}).getJSONObject("result");
+
+            // {"layoutViewport":{"pageX":0,"pageY":0,"clientWidth":1912,"clientHeight":926}
             JSONObject layoutMetrics = mSession.doCall(PageDomain.getLayoutMetricsCommand).getJSONObject("result");
 
             if (Objects.isNull(content) || content.getJSONArray("quads").size() == 0) {
                 throw new JuppeteerException("Node is either not visible or not an HTMLElement");
             }
 
-            int width = layoutMetrics.getJSONObject("layoutViewport").getInteger("clientWidth");
-            int height = layoutMetrics.getJSONObject("layoutViewport").getInteger("clientHeight");
+            float width = layoutMetrics.getJSONObject("layoutViewport").getFloat("clientWidth");
+            float height = layoutMetrics.getJSONObject("layoutViewport").getFloat("clientHeight");
 
-            JSONArray quads = content.getJSONArray("quads");
-//            quads.stream()
-//                    .map(quad -> fromProtocolQuad(quad)
-//                    .map(quad -> intersectQuadWithViewport(quad, width, height)
-//                    .filter(quad -> computeQuadArea(quad) > 1)
-//                    .toArray();
+            List<List<HashMap<String, Float>>> quads = content.getJSONArray("quads").stream()
+                    .map(quad -> fromProtocolQuad((JSONArray) quad))
+                    .map(quad -> intersectQuadWithViewport(quad, width, height))
+                    .filter(quad -> computeQuadArea(quad) > 1)
+                    .collect(Collectors.toList());
 
-//                    new ArrayList<String>().stream().map(ss -> {fromProtocolQuad(ss)})
-            return new HashMap<>();
+            if (quads.size() == 0) throw new JuppeteerException("Node is either not visible or not an HTMLElement");
 
-        }
-
-        private List<Map<String, Integer>> fromProtocolQuad(JSONArray quad) {
-            return new ArrayList<Map<String, Integer>>() {{
-                add(new HashMap<String, Integer>() {{
-                    put("x", quad.getInteger(0));
-                    put("y", quad.getInteger(1));
-                }});
-                add(new HashMap<String, Integer>() {{
-                    put("x", quad.getInteger(2));
-                    put("y", quad.getInteger(3));
-                }});
-                add(new HashMap<String, Integer>() {{
-                    put("x", quad.getInteger(4));
-                    put("y", quad.getInteger(5));
-                }});
-                add(new HashMap<String, Integer>() {{
-                    put("x", quad.getInteger(6));
-                    put("y", quad.getInteger(7));
-                }});
-            }};
-        }
-
-        private Map<String, Integer> intersectQuadWithViewport(Map<String, Integer> quad, int width, int height) {
+            List<HashMap<String, Float>> quad = quads.get(0);
+            float x = 0, y = 0;
+            for (HashMap<String, Float> point : quad) {
+                x += point.get("x");
+                y += point.get("y");
+            }
+            float finalX = x, finalY = y;
             return new HashMap<String, Integer>() {{
-                put("x", Math.min(Math.max(quad.get("x"), 0), width));
-                put("y", Math.min(Math.max(quad.get("y"), 0), height));
+                put("x", (int) (finalX / 4));
+                put("y", (int) (finalY / 4));
             }};
         }
 
-        private int computeQuadArea(Map<String, Integer> quad) {
+        private Float computeQuadArea(List<HashMap<String, Float>> quad) {
             // Compute sum of all directed areas of adjacent triangles
             // https://en.wikipedia.org/wiki/Polygon#Simple_polygons
-            int area = 0;
-//            Set<Map.Entry<String, Integer>> entries = quad.entrySet();
-//            for (int i = 0; i < entries.size(); ++i) {
-//            }
-            // TODO: 2/19/20
-            return 0;
-//            let area = 0;
-//            for (let i = 0; i < quad.length; ++i) {
-//    const p1 = quad[i];
-//    const p2 = quad[(i + 1) % quad.length];
-//                area += (p1.x * p2.y - p2.x * p1.y) / 2;
-//            }
-//            return Math.abs(area);
+            float area = 0;
+            for (int i = 0; i < quad.size(); i++) {
+                HashMap<String, Float> p1 = quad.get(i);
+                HashMap<String, Float> p2 = quad.get((i + 1) % quad.size());
+                area += (p1.get("x") * p2.get("y") - p2.get("x") * p1.get("y")) / 2;
+            }
+            return Math.abs(area);
+        }
+
+        private List<HashMap<String, Float>> intersectQuadWithViewport(List<Map<String, Float>> quad, float width, float height) {
+            return quad.stream().map(point -> new HashMap<String, Float>() {{
+                put("x", Math.min(Math.max(point.get("x"), 0), width));
+                put("y", Math.min(Math.max(point.get("y"), 0), height));
+            }}).collect(Collectors.toList());
+        }
+
+        private List<Map<String, Float>> fromProtocolQuad(JSONArray quad) {
+            return new ArrayList<Map<String, Float>>() {{
+                add(new HashMap<String, Float>() {{
+                    put("x", quad.getFloat(0));
+                    put("y", quad.getFloat(1));
+                }});
+                add(new HashMap<String, Float>() {{
+                    put("x", quad.getFloat(2));
+                    put("y", quad.getFloat(3));
+                }});
+                add(new HashMap<String, Float>() {{
+                    put("x", quad.getFloat(4));
+                    put("y", quad.getFloat(5));
+                }});
+                add(new HashMap<String, Float>() {{
+                    put("x", quad.getFloat(6));
+                    put("y", quad.getFloat(7));
+                }});
+            }};
         }
 
         private JSONObject getBoxModel() throws TimeoutException {
@@ -257,19 +277,14 @@ public class JSHandle {
 
         public void hover() throws TimeoutException {
             scrollIntoViewIfNeeded();
-            Map<String, Integer> stringIntegerMap = clickablePoint();
-//            mFrameManager.getPage().
-
-            // TODO: 2/19/20 mouse move
-//            await this._scrollIntoViewIfNeeded();
-//    const {x, y} = await this._clickablePoint();
-//            await this._page.mouse.move(x, y);
+            Map<String, Integer> point = clickablePoint();
+            mPage.getMouse().move(point.get("x"), point.get("y"), new JSONObject());
         }
 
         public void click(JSONObject options) throws TimeoutException {
             scrollIntoViewIfNeeded();
-            Map<String, Integer> stringIntegerMap = clickablePoint();
-//            await this._page.mouse.click(x, y, options);
+            Map<String, Integer> point = clickablePoint();
+            mPage.getMouse().click(point.get("x"), point.get("y"), new JSONObject());
         }
 
         public void tap() throws TimeoutException {
@@ -280,7 +295,7 @@ public class JSHandle {
 
         public void focus() throws TimeoutException {
             // FIXME: 2/19/20 没有参数？
-            evaluate("(element) => element.focus()");
+            evaluateCodeBlock4Value("(element) => element.focus()");
         }
 
         public void type(String text, JSONObject options) throws TimeoutException {
@@ -314,7 +329,7 @@ public class JSHandle {
                     Math.max(quad.getInteger(1), quad.getInteger(3)),
                     Math.max(quad.getInteger(5), quad.getInteger(7))
             ) - y;
-            return new HashMap<String, Integer>(){{
+            return new HashMap<String, Integer>() {{
                 put("x", x);
                 put("y", y);
                 put("width", width);
@@ -336,7 +351,7 @@ public class JSHandle {
 //                    width,
 //                    height
 
-            return new HashMap<String, Integer>(){{
+            return new HashMap<String, Integer>() {{
                 put("content", 1);
                 put("padding", 1);
                 put("border", 1);
@@ -348,13 +363,13 @@ public class JSHandle {
 
 
         public ElementHandle $(String selector) throws TimeoutException {
-            ElementHandle handle = (ElementHandle) evaluateHandle("");
+            JSHandle.ElementHandle element = (ElementHandle) evaluateFunction4Handle(
+                    "(element, selector) => element.querySelector(selector)", this, selector);
 
-            if (Objects.nonNull(handle)) {
-                return handle;
-            }
+            if (Objects.nonNull(element)) return element;
+
             // 好奇怪这段代码
-//            handle.dispose();
+//            element.dispose();
             return null;
         }
     }

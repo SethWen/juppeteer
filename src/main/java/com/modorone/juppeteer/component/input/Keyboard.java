@@ -29,6 +29,10 @@ public class Keyboard {
         mSession = session;
     }
 
+    public int getModifiers() {
+        return mModifiers;
+    }
+
     /**
      * @param key
      * @param options {{text?: string}=} options

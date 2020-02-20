@@ -1,5 +1,6 @@
 package com.modorone.juppeteer.component;
 
+import com.modorone.juppeteer.Browser;
 import com.modorone.juppeteer.cdp.CDPSession;
 import com.modorone.juppeteer.util.StringUtil;
 import org.slf4j.Logger;
@@ -18,14 +19,16 @@ public class Target {
 
     private static final Logger logger = LoggerFactory.getLogger(Target.class);
 
+    private Browser mBrowser;
     private TargetInfo mTargetInfo;
     private Supplier<CDPSession> mSessionSupplier;
 
-    public static Target create(TargetInfo targetInfo, Supplier<CDPSession> sessionSupplier) {
-        return new Target(targetInfo, sessionSupplier);
+    public static Target create(Browser browser, TargetInfo targetInfo, Supplier<CDPSession> sessionSupplier) {
+        return new Target(browser, targetInfo, sessionSupplier);
     }
 
-    private Target(TargetInfo targetInfo, Supplier<CDPSession> sessionSupplier) {
+    private Target(Browser browser, TargetInfo targetInfo, Supplier<CDPSession> sessionSupplier) {
+        mBrowser = browser;
         mTargetInfo = targetInfo;
         mSessionSupplier = sessionSupplier;
     }
@@ -34,13 +37,17 @@ public class Target {
         // TODO: 2/16/20 涉及到 openerId，暂时没发现该字段，暂时不实现
     }
 
+    public Browser getBrowser() {
+        return mBrowser;
+    }
+
     public Page getPage() throws TimeoutException {
         Page page = null;
         if (StringUtil.equals("page", mTargetInfo.getType())
                 || StringUtil.equals("background_page", mTargetInfo.getType())) {
             CDPSession apply = mSessionSupplier.get();
             logger.debug("newPage: apply={}", apply);
-            page = Page.create(apply);
+            page = Page.create(apply, this);
         }
         return page;
     }

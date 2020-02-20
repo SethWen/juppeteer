@@ -31,22 +31,20 @@ public class Mouse {
     }
 
     public void move(int x, int y, JSONObject options) throws TimeoutException {
-        int steps = options.getInteger("steps");
+        int steps = options.getIntValue("steps");
         if (steps < 1) steps = 1;
 
         int fromX = mX, fromY = mY;
         mX = x;
         mY = y;
-        for (int i = 0; i < steps; i++) {
-            int finalI = i;
-            int finalSteps = steps;
+        for (int i = 1; i <= steps; i++) {
+            int finalI = i, finalSteps = steps;
             mSession.doCall(InputDomain.dispatchMouseEventCommand, new JSONObject() {{
                 put("type", "mouseMoved");
                 put("button", mButton);
                 put("x", fromX + (mX - fromX) * (finalI / finalSteps));
                 put("y", fromY + (mY - fromY) * (finalI / finalSteps));
-//                put("modifiers", ""); // todo
-//                modifiers: this._keyboard._modifiers
+                put("modifiers", mKeyboard.getModifiers());
             }});
         }
     }
@@ -68,7 +66,7 @@ public class Mouse {
             put("button", button);
             put("x", mX);
             put("y", mY);
-//            put("modifiers", ""); // todo
+            put("modifiers", mKeyboard.getModifiers());
             put("clickCount", clickCount);
         }});
     }
@@ -82,7 +80,7 @@ public class Mouse {
             put("button", button);
             put("x", mX);
             put("y", mY);
-//            put("modifiers", ""); // todo
+            put("modifiers", mKeyboard.getModifiers());
             put("clickCount", clickCount);
         }});
     }

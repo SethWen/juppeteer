@@ -31,7 +31,7 @@ public class FrameManager implements Frame.FrameListener {
     private Map<Integer, ExecutionContext> mContexts = new HashMap<>();
     private CDPSession mSession;
     private Page mPage;
-    private NetworkManager mNetWorkManager;
+    private NetworkManager mNetworkManager;
     private Frame mMainFrame;
     private LifecycleWatcher.LifecycleListener mLifecycleListener;
     private Set<String> mIsolatedWorlds = new HashSet<>();
@@ -40,7 +40,7 @@ public class FrameManager implements Frame.FrameListener {
     public FrameManager(CDPSession session, Page page) {
         mSession = session;
         mPage = page;
-        mNetWorkManager = new NetworkManager(session, this, true); // TODO: 2/14/20 ignore https error
+        mNetworkManager = new NetworkManager(session, this, true); // TODO: 2/14/20 ignore https error
     }
 
     public void init() throws TimeoutException {
@@ -53,7 +53,7 @@ public class FrameManager implements Frame.FrameListener {
         }});
         mSession.doCall(RuntimeDomain.enableCommand);
         ensureIsolatedWorld(UTILITY_WORLD_NAME);
-        mNetWorkManager.init();
+        mNetworkManager.init();
     }
 
     public Page getPage() {
@@ -108,21 +108,14 @@ public class FrameManager implements Frame.FrameListener {
         return mFrames.get(frameId);
     }
 
-    public List<Frame> frames() {
-//        /** @type {!Array<!Frame>} */
-//        let frames = [];
-//        collect(this._mainFrame);
-//        return frames;
-//
-//        function collect(frame) {
-//                frames.push(frame);
-//        for (const subframe of frame._children)
-//        collect(subframe);
-        return new ArrayList<>();
+    public List<Frame> getFrames() {
+        List<Frame> frames = new ArrayList<>();
+        mFrames.forEach((key, value) -> frames.add(value));
+        return frames;
     }
 
     public void navigateFrame(Frame frame, String url) {
-        Response navigateResponse = mNetWorkManager.getNavigateResponse();
+        Response navigateResponse = mNetworkManager.getNavigateResponse();
         try {
             logger.debug("navigateFrame: navigateResponse={}", navigateResponse);
 //            navigateResponse.getBuffer();
@@ -274,5 +267,9 @@ public class FrameManager implements Frame.FrameListener {
         if (Objects.isNull(frame)) return;
 
         frame.proceedLifecycle(event.getString("loaderId"), event.getString("name"));
+    }
+
+    public NetworkManager getNetworkManager() {
+        return mNetworkManager;
     }
 }

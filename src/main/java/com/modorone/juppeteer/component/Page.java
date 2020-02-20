@@ -3,10 +3,15 @@ package com.modorone.juppeteer.component;
 import com.alibaba.fastjson.JSONObject;
 import com.modorone.juppeteer.Browser;
 import com.modorone.juppeteer.cdp.CDPSession;
+import com.modorone.juppeteer.component.input.Keyboard;
+import com.modorone.juppeteer.component.input.Mouse;
+import com.modorone.juppeteer.component.input.Touchscreen;
 import com.modorone.juppeteer.protocol.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeoutException;
 
 /**
@@ -21,20 +26,34 @@ public class Page {
 
     private String mUrl;
     private CDPSession mSession;
+    private Target mTarget;
     private FrameManager mFrameManager;
     private boolean mJavascriptEnabled = true;
 
-    public static Page create(CDPSession session) throws TimeoutException {
-        Page page = new Page(session);
+    private Keyboard mKeyboard;
+    private Mouse mMouse;
+    private Touchscreen mTouchscreen;
+    private Coverage mCoverage;
+    private Tracing mTracing;
+    private Accessibility mAccessibility;
+
+    public static Page create(CDPSession session, Target target) throws TimeoutException {
+        Page page = new Page(session, target);
         page.init();
         return page;
     }
 
-    private Page(CDPSession session) {
+    private Page(CDPSession session, Target target) {
         mSession = session;
+        mTarget = target;
 
         mFrameManager = new FrameManager(session, this);
-
+        mKeyboard = new Keyboard(session);
+        mMouse = new Mouse(session, mKeyboard);
+        mTouchscreen = new Touchscreen(session, mKeyboard);
+        mCoverage = new Coverage(session);
+        mTracing = new Tracing(session);
+        mAccessibility = new Accessibility(session);
     }
 
     private void init() throws TimeoutException {
@@ -64,21 +83,80 @@ public class Page {
         }
     }
 
-    private String getUrl() {
-        return mUrl;
+    public String getUrl() {
+        return getMainFrame().getUrl();
+    }
+
+    public String getContent() {
+        return getMainFrame().getContent();
     }
 
     public Browser getBrowser() {
-        return null;
+        return mTarget.getBrowser();
     }
 
     public Target getTarget() {
-        return null;
+        return mTarget;
     }
 
     public Frame getMainFrame() {
-        Frame frame = mFrameManager.getMainFrame();
-        return frame;
+        return mFrameManager.getMainFrame();
+    }
+
+    public Keyboard getKeyboard() {
+        return mKeyboard;
+    }
+
+    public Mouse getMouse() {
+        return mMouse;
+    }
+
+    public Touchscreen getTouchscreen() {
+        return mTouchscreen;
+    }
+
+    public Coverage getCoverage() {
+        return mCoverage;
+    }
+
+    public Tracing getTracing() {
+        return mTracing;
+    }
+
+    public Accessibility getAccessibility() {
+        return mAccessibility;
+    }
+
+    public List<Frame> getFrames() {
+        return mFrameManager.getFrames();
+    }
+
+    public void setRequestInterception(boolean enabled) throws TimeoutException {
+        mFrameManager.getNetworkManager().setRequestInterception(enabled);
+    }
+
+    public void setOfflineMode(boolean enabled) throws TimeoutException {
+        mFrameManager.getNetworkManager().setOfflineMode(enabled);
+    }
+
+    public void setDefaultNavigationTimeout(int timeout) {
+//        this._timeoutSettings.setDefaultNavigationTimeout(timeout);
+    }
+
+    public void setDefaultTimeout(int timeout) {
+//        this._timeoutSettings.setDefaultTimeout(timeout);
+    }
+
+    public void setAuthenticate(String username, String password) throws TimeoutException {
+        mFrameManager.getNetworkManager().setAuthenticate(username, password);
+    }
+
+    public void setExtraHTTPHeaders(Map<String, String> headers) throws TimeoutException {
+        mFrameManager.getNetworkManager().setExtraHTTPHeaders(headers);
+    }
+
+    public void setUserAgent(String userAgent) throws TimeoutException {
+        mFrameManager.getNetworkManager().setUserAgent(userAgent);
     }
 
     public boolean isJavascriptEnabled() {
@@ -89,7 +167,7 @@ public class Page {
         if (mJavascriptEnabled == enabled) return;
 
         mJavascriptEnabled = enabled;
-        mSession.doCall(EmulationDomain.setScriptExecutionDisabledCommand, new JSONObject(){{
+        mSession.doCall(EmulationDomain.setScriptExecutionDisabledCommand, new JSONObject() {{
             put("value", !enabled);
         }});
     }
@@ -114,11 +192,27 @@ public class Page {
         }});
     }
 
-    public Object evaluate(String pageFunction) throws TimeoutException, InterruptedException {
-        return mFrameManager.getMainFrame().evaluate(pageFunction);
+    public Object evaluateCodeBlock4Value(String pageFunction) throws TimeoutException, InterruptedException {
+        return mFrameManager.getMainFrame().evaluateCodeBlock4Value(pageFunction);
     }
 
-    public Object evaluateHandle(String pageFunction) throws TimeoutException, InterruptedException {
-        return mFrameManager.getMainFrame().evaluateHandle(pageFunction);
+    public Object evaluateCodeBlock4Handle(String pageFunction) throws TimeoutException, InterruptedException {
+        return mFrameManager.getMainFrame().evaluateCodeBlock4Handle(pageFunction);
+    }
+
+    public Object evaluateFunction4Value(String pageFunction, Object... args) throws TimeoutException, InterruptedException {
+        return mFrameManager.getMainFrame().evaluateFunction4Value(pageFunction, args);
+    }
+
+    public Object evaluateFunction4Handle(String pageFunction, Object... args) throws TimeoutException, InterruptedException {
+        return mFrameManager.getMainFrame().evaluateFunction4Handle(pageFunction, args);
+    }
+
+    public void hover(String selector) throws TimeoutException, InterruptedException {
+        getMainFrame().hover(selector);
+    }
+
+    public void click(String selector, JSONObject options) throws TimeoutException, InterruptedException {
+        getMainFrame().click(selector, options);
     }
 }
