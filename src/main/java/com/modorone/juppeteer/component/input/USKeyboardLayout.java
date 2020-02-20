@@ -1,4 +1,4 @@
-package com.modorone.juppeteer;
+package com.modorone.juppeteer.component.input;
 
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;

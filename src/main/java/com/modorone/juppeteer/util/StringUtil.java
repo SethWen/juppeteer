@@ -33,6 +33,10 @@ public class StringUtil {
         return Objects.isNull(ch) || ch.length() == 0;
     }
 
+    public static boolean nonEmpty(CharSequence ch) {
+        return !isEmpty(ch);
+    }
+
     public static boolean equals(final CharSequence cs1, final CharSequence cs2) {
         if (cs1 == cs2) {
             return true;
