@@ -1,7 +1,8 @@
 package com.modorone.juppeteer;
 
+import com.modorone.juppeteer.pojo.Viewport;
+
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 
 /**
@@ -22,7 +23,7 @@ public class Options {
     private boolean handleSIGTERM = true;
     private boolean handleSIGHUP = true;
     private boolean ignoreHTTPSErrors = false;
-    private ViewPort defaultViewport = new ViewPort();
+    private Viewport defaultViewport = new Viewport();
     private int slowMo = 0;
     private int timeout = 30000;
 
@@ -98,11 +99,11 @@ public class Options {
         this.ignoreHTTPSErrors = ignoreHTTPSErrors;
     }
 
-    public ViewPort getDefaultViewport() {
+    public Viewport getDefaultViewport() {
         return defaultViewport;
     }
 
-    public void setDefaultViewport(ViewPort defaultViewport) {
+    public void setDefaultViewport(Viewport defaultViewport) {
         this.defaultViewport = defaultViewport;
     }
 

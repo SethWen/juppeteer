@@ -12,7 +12,6 @@ import com.modorone.juppeteer.util.Pair;
 import com.modorone.juppeteer.util.StringUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import sun.reflect.generics.tree.VoidDescriptor;
 
 import java.util.*;
 import java.util.concurrent.TimeoutException;

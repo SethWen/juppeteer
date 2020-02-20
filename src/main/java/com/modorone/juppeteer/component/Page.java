@@ -6,6 +6,8 @@ import com.modorone.juppeteer.cdp.CDPSession;
 import com.modorone.juppeteer.component.input.Keyboard;
 import com.modorone.juppeteer.component.input.Mouse;
 import com.modorone.juppeteer.component.input.Touchscreen;
+import com.modorone.juppeteer.pojo.Device;
+import com.modorone.juppeteer.pojo.Viewport;
 import com.modorone.juppeteer.protocol.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,12 +32,14 @@ public class Page {
     private FrameManager mFrameManager;
     private boolean mJavascriptEnabled = true;
 
+    private Viewport mViewport;
     private Keyboard mKeyboard;
     private Mouse mMouse;
     private Touchscreen mTouchscreen;
     private Coverage mCoverage;
     private Tracing mTracing;
     private Accessibility mAccessibility;
+    private EmulationManager mEmulationManager;
 
     public static Page create(CDPSession session, Target target) throws TimeoutException {
         Page page = new Page(session, target);
@@ -54,6 +58,7 @@ public class Page {
         mCoverage = new Coverage(session);
         mTracing = new Tracing(session);
         mAccessibility = new Accessibility(session);
+        mEmulationManager = new EmulationManager(session);
     }
 
     private void init() throws TimeoutException {
@@ -159,6 +164,19 @@ public class Page {
         mFrameManager.getNetworkManager().setUserAgent(userAgent);
     }
 
+    public void setViewPort(Viewport viewPort) throws TimeoutException {
+        boolean reloadNeeded = mEmulationManager.emulateViewport(viewPort);
+        mViewport = viewPort;
+        if (reloadNeeded) reload();
+
+    }
+
+    public void emulate(Device device) throws TimeoutException {
+        setUserAgent(device.getUserAgent());
+        setViewPort(device.getViewport());
+    }
+
+
     public boolean isJavascriptEnabled() {
         return mJavascriptEnabled;
     }
@@ -174,6 +192,10 @@ public class Page {
 
     public void navigate(String url) throws TimeoutException {
         mFrameManager.getMainFrame().navigate(url);
+    }
+
+    public void reload() {
+        // TODO: 2/20/20
     }
 
     public void setGeolocation(double longitude, double latitude, double accuracy) throws TimeoutException {

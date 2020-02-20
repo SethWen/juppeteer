@@ -5,6 +5,7 @@ import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.modorone.juppeteer.component.Page;
 import com.modorone.juppeteer.component.Target;
+import com.modorone.juppeteer.pojo.Viewport;
 import com.modorone.juppeteer.util.StringUtil;
 import com.modorone.juppeteer.util.SystemUtil;
 import org.slf4j.Logger;
@@ -71,6 +72,10 @@ public class Test {
 
 //            page.hover("#fakebox-microphone");
             page.click("#fakebox-microphone", new JSONObject());
+            page.setViewPort(new Viewport(){{
+                setWidth(300);
+                setHeight(400);
+            }});
 
 //            Object o = page.evaluateHandle(String.format(pageFun, 3));
         } catch (Exception e) {
