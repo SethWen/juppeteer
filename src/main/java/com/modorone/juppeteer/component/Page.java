@@ -237,4 +237,16 @@ public class Page {
     public void click(String selector, JSONObject options) throws TimeoutException, InterruptedException {
         getMainFrame().click(selector, options);
     }
+
+    public void type(String selector, String text, JSONObject options) throws TimeoutException, InterruptedException {
+        getMainFrame().type(selector, text, options);
+    }
+
+    public void tap(String selector) throws TimeoutException, InterruptedException {
+        getMainFrame().tap(selector);
+    }
+
+    public void press(String selector, String key, JSONObject options) throws TimeoutException, InterruptedException {
+        getMainFrame().press(selector, key, options);
+    }
 }

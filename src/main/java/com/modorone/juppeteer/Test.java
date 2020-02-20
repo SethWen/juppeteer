@@ -70,12 +70,15 @@ public class Test {
 //            int e2 = (int) page.evaluateFunction4Value(pageFun3, 4, 8);
 //            System.out.println("-----e2----->" + e2);
 
+            page.click("input", new JSONObject());
+            page.type("#fakebox-input", "麻痹", new JSONObject());
+//            page.press("input", "s", new JSONObject());
 //            page.hover("#fakebox-microphone");
-            page.click("#fakebox-microphone", new JSONObject());
-            page.setViewPort(new Viewport(){{
-                setWidth(300);
-                setHeight(400);
-            }});
+//            page.click("#fakebox-microphone", new JSONObject());
+//            page.setViewPort(new Viewport(){{
+//                setWidth(300);
+//                setHeight(400);
+//            }});
 
 //            Object o = page.evaluateHandle(String.format(pageFun, 3));
         } catch (Exception e) {

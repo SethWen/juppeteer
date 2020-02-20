@@ -10,6 +10,7 @@ import com.modorone.juppeteer.protocol.RuntimeDomain;
 import com.modorone.juppeteer.util.StringUtil;
 
 import java.util.*;
+import java.util.List;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
@@ -287,25 +288,24 @@ public class JSHandle {
             mPage.getMouse().click(point.get("x"), point.get("y"), new JSONObject());
         }
 
-        public void tap() throws TimeoutException {
-            scrollIntoViewIfNeeded();
-            Map<String, Integer> stringIntegerMap = clickablePoint();
-//            await this._page.touchscreen.tap(x, y);
-        }
-
         public void focus() throws TimeoutException {
-            // FIXME: 2/19/20 没有参数？
-            evaluateCodeBlock4Value("(element) => element.focus()");
+            evaluateFunction4Value("(element) => element.focus()", this);
         }
 
         public void type(String text, JSONObject options) throws TimeoutException {
             focus();
-//            await this._page.keyboard.type(text, options);
+            mPage.getKeyboard().type(text, options);
+        }
+
+        public void tap() throws TimeoutException {
+            scrollIntoViewIfNeeded();
+            Map<String, Integer> point = clickablePoint();
+            mPage.getTouchscreen().tap(point.get("x"), point.get("y"));
         }
 
         public void press(String key, JSONObject options) throws TimeoutException {
             focus();
-//            await this._page.keyboard.press(key, options);
+            mPage.getKeyboard().press(key, options);
         }
 
         public Map<String, Integer> boundingBox() throws TimeoutException {

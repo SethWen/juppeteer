@@ -6,6 +6,7 @@ import com.modorone.juppeteer.cdp.CDPSession;
 import com.modorone.juppeteer.protocol.InputDomain;
 import com.modorone.juppeteer.protocol.RuntimeDomain;
 
+import java.util.Objects;
 import java.util.concurrent.TimeoutException;
 
 /**
@@ -50,6 +51,7 @@ public class Touchscreen {
     }
 
     public void move(int x, int y, JSONObject options) throws TimeoutException {
+        if (Objects.isNull(options)) options = new JSONObject();
         int fromX = mX;
         int fromY = mY;
         mX = x;

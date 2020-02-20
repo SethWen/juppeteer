@@ -97,11 +97,16 @@ public class Frame {
     public void click(/*selector, options = {}*/) {
     }
 
-    public void tap(/*selector*/) {
+    public void tap(String selector) throws TimeoutException, InterruptedException {
+        mSecondaryWorld.tap(selector);
     }
 
-    public void type(/*selector, text, options*/) {
-//        return this._mainWorld.type(selector, text, options);
+    public void press(String selector, String key, JSONObject options) throws TimeoutException, InterruptedException {
+        mSecondaryWorld.press(selector, key, options);
+    }
+
+    public void type(String selector, String text, JSONObject options) throws TimeoutException, InterruptedException {
+        mMainWorld.type(selector, text, options);
     }
 
     public void focus(/*selector*/) {

@@ -39,6 +39,7 @@ public class Keyboard {
      * @throws TimeoutException
      */
     public void down(String key, JSONObject options) throws TimeoutException {
+        if (Objects.isNull(options)) options = new JSONObject();
         JSONObject desc = getKeyDescriptionByKeyString(key);
         boolean autoRepeat = mPressKeys.contains(desc.getString("code"));
         mPressKeys.add(desc.getString("code"));
@@ -146,6 +147,7 @@ public class Keyboard {
      * @param options {{delay: (number|undefined)}=} options
      */
     public void type(String text, JSONObject options) throws TimeoutException {
+        if (Objects.isNull(options)) options = new JSONObject();
         long delay = options.getLongValue("delay");
         for (int i = 0; i < text.length(); i++) {
             String ch = String.valueOf(text.charAt(i));
@@ -165,6 +167,7 @@ public class Keyboard {
      * @param options {!{delay?: number, text?: string}=} options
      */
     public void press(String key, JSONObject options) throws TimeoutException {
+        if (Objects.isNull(options)) options = new JSONObject();
         down(key, new JSONObject());
         long delay = options.getLongValue("delay");
         SystemUtil.sleep(delay);

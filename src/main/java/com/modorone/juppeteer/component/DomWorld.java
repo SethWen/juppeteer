@@ -133,6 +133,27 @@ public class DomWorld {
         elem.dispose();
     }
 
+    public void type(String selector, String text, JSONObject options) throws TimeoutException, InterruptedException, ElementNotFoundException {
+        JSHandle.ElementHandle elem = $(selector);
+        if (Objects.isNull(elem)) throw new ElementNotFoundException("No node found for selector: " + selector);
+        elem.type(text, options);
+        elem.dispose();
+    }
+
+    public void tap(String selector) throws TimeoutException, InterruptedException, ElementNotFoundException {
+        JSHandle.ElementHandle elem = $(selector);
+        if (Objects.isNull(elem)) throw new ElementNotFoundException("No node found for selector: " + selector);
+        elem.tap();
+        elem.dispose();
+    }
+
+    public void press(String selector, String key, JSONObject options) throws TimeoutException, InterruptedException, ElementNotFoundException {
+        JSHandle.ElementHandle elem = $(selector);
+        if (Objects.isNull(elem)) throw new ElementNotFoundException("No node found for selector: " + selector);
+        elem.press(key, options);
+        elem.dispose();
+    }
+
     public JSHandle.ElementHandle $(String selector) throws TimeoutException, InterruptedException {
         JSHandle.ElementHandle document = geDocument();
         return document.$(selector);

@@ -31,6 +31,7 @@ public class Mouse {
     }
 
     public void move(int x, int y, JSONObject options) throws TimeoutException {
+        if (Objects.isNull(options)) options = new JSONObject();
         int steps = options.getIntValue("steps");
         if (steps < 1) steps = 1;
 
@@ -50,6 +51,7 @@ public class Mouse {
     }
 
     public void click(int x, int y, JSONObject options) throws TimeoutException {
+        if (Objects.isNull(options)) options = new JSONObject();
         long delay = options.getLongValue("delay");
         move(x, y, options);
         down(options);
@@ -58,6 +60,7 @@ public class Mouse {
     }
 
     public void down(JSONObject options) throws TimeoutException {
+        if (Objects.isNull(options)) options = new JSONObject();
         String button = StringUtil.isEmpty(options.getString("button")) ? "left" : options.getString("button");
         int clickCount = Objects.isNull(options.getInteger("clickCount")) ? 1 : options.getInteger("clickCount");
         mButton = button;
@@ -72,6 +75,7 @@ public class Mouse {
     }
 
     public void up(JSONObject options) throws TimeoutException {
+        if (Objects.isNull(options)) options = new JSONObject();
         String button = StringUtil.isEmpty(options.getString("button")) ? "left" : options.getString("button");
         int clickCount = Objects.isNull(options.getInteger("clickCount")) ? 1 : options.getInteger("clickCount");
         mButton = "none";
