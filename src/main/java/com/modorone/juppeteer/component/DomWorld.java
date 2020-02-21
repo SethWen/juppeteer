@@ -1,7 +1,7 @@
 package com.modorone.juppeteer.component;
 
 import com.alibaba.fastjson.JSONObject;
-import com.modorone.juppeteer.cdp.BlockingCell;
+import com.modorone.juppeteer.util.BlockingCell;
 import com.modorone.juppeteer.exception.ElementNotFoundException;
 import com.modorone.juppeteer.exception.JuppeteerException;
 
@@ -117,6 +117,21 @@ public class DomWorld {
 
     public Object evaluateFunction4Handle(String pageFunction, Object... args) throws InterruptedException, TimeoutException {
         return getContextWaiter().get().evaluateFunction4Handle(pageFunction, args);
+    }
+
+    public String getTitle() throws TimeoutException, InterruptedException {
+        return (String) evaluateFunction4Value("() => document.title");
+    }
+
+    public String getContent() throws TimeoutException, InterruptedException {
+        return (String) evaluateFunction4Value("() => {\n" +
+                "    let retVal = '';\n" +
+                "    if (document.doctype)\n" +
+                "        retVal = new XMLSerializer().serializeToString(document.doctype);\n" +
+                "    if (document.documentElement)\n" +
+                "        retVal += document.documentElement.outerHTML;\n" +
+                "    return retVal;\n" +
+                "}");
     }
 
     public void hover(String selector) throws TimeoutException, InterruptedException, ElementNotFoundException {

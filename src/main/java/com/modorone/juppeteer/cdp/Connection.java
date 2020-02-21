@@ -8,6 +8,7 @@ import com.modorone.juppeteer.component.network.NetworkListener;
 import com.modorone.juppeteer.component.Target;
 import com.modorone.juppeteer.exception.WebSocketCreationException;
 import com.modorone.juppeteer.protocol.*;
+import com.modorone.juppeteer.util.BlockingCell;
 import com.modorone.juppeteer.util.StringUtil;
 import com.modorone.juppeteer.util.SystemUtil;
 import okhttp3.*;
@@ -61,8 +62,6 @@ public class Connection extends WebSocketListener {
         Request request = new Request.Builder().url(url).build();
         mWebSocket = client.newWebSocket(request, this);
         waitForCreated();
-//        SystemUtil.sleep(2000);
-//        testRPC();
     }
 
     public String getUrl() {
@@ -133,26 +132,6 @@ public class Connection extends WebSocketListener {
         mNetworkListener = listener;
     }
 
-//    public String doCall(String text) throws TimeoutException {
-//        BlockingCell<String> k = new BlockingCell<>();
-//        int id;
-//        synchronized (mContinuationMap) {
-//            id = mId.getAndIncrement();
-//            mContinuationMap.put(id, k);
-//        }
-//        mWebSocket.send(text);
-//        String reply;
-//        try {
-//            reply = k.uninterruptibleGet(5000);
-//        } catch (TimeoutException ex) {
-//            // Avoid potential leak.  This entry is no longer needed by caller.
-//            mContinuationMap.remove(id);
-//            throw ex;
-//        }
-//        logger.debug("doCall: \n\trequest={}\n\tresponse={}", text, reply);
-//        return reply;
-//    }
-
     public CDPSession getSession(String targetId) {
         return mSessions.get(targetId);
     }
@@ -203,6 +182,7 @@ public class Connection extends WebSocketListener {
         }
 
         json.put("id", id);
+        logger.debug("doCall: \n\trequest={}\n\t", json.toJSONString());
         mWebSocket.send(json.toJSONString());
         String reply;
         try {
@@ -216,7 +196,7 @@ public class Connection extends WebSocketListener {
         if (Objects.nonNull(jsonReply.getJSONObject("error"))) {
             logger.warn("doCall: error occurs!!!");
         }
-        logger.debug("doCall: \n\trequest={}\n\tresponse={}", json.toJSONString(), reply);
+//        logger.debug("doCall: \n\trequest={}\n\tresponse={}", json.toJSONString(), reply);
         return jsonReply;
     }
 
@@ -230,7 +210,6 @@ public class Connection extends WebSocketListener {
     @Override
     public void onMessage(WebSocket webSocket, String text) {
         super.onMessage(webSocket, text);
-        logger.debug("onMessage: text={}", text);
         JSONObject json = JSON.parseObject(text);
         if (StringUtil.equals(TargetDomain.attachedToTargetEvent, json.getString("method"))) {
             String sessionId = json.getJSONObject("params").getString("sessionId");

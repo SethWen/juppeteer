@@ -1,4 +1,4 @@
-package com.modorone.juppeteer.cdp;
+package com.modorone.juppeteer.util;
 
 import java.util.concurrent.TimeoutException;
 

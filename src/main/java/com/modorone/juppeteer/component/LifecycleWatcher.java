@@ -1,6 +1,12 @@
 package com.modorone.juppeteer.component;
 
+import com.modorone.juppeteer.WaitUntil;
+import com.modorone.juppeteer.util.BlockingCell;
 import com.modorone.juppeteer.component.network.Request;
+import com.modorone.juppeteer.component.network.Response;
+import com.modorone.juppeteer.util.StringUtil;
+
+import java.util.Objects;
 
 /**
  * author: Shawn
@@ -15,69 +21,106 @@ public class LifecycleWatcher {
     private int mTimeout;
     private String mInitialLoaderId;
     private Request mNavigationRequest;
+    private WaitUntil mWaitUntil;
+    private boolean mHasSameDocumentNavigation;
+
+    private BlockingCell<Boolean> mSameDocumentNavigationWaiter = new BlockingCell<>();
+    private BlockingCell<Boolean> mLifecycleWaiter = new BlockingCell<>();
+    private BlockingCell<Boolean> mNewDocumentNavigationWaiter = new BlockingCell<>();
+    private BlockingCell<Boolean> mTerminationWaiter = new BlockingCell<>();
 
     private LifecycleListener mLifeCycleListener = new LifecycleListener() {
         @Override
         public void onTerminate() {
-
+            mTerminationWaiter.set(true);
         }
 
         @Override
         public void onCheckLifecycleComplete() {
-//// We expect navigation to commit.
-//            if (!checkLifecycle(this._frame, this._expectedLifecycle))
-//                return;
-//            this._lifecycleCallback();
-//            if (this._frame._loaderId === this._initialLoaderId && !this._hasSameDocumentNavigation)
-//                return;
-//            if (this._hasSameDocumentNavigation)
-//                this._sameDocumentNavigationCompleteCallback();
-//            if (this._frame._loaderId !== this._initialLoaderId)
-//                this._newDocumentNavigationCompleteCallback();
-//
-//            /**
-//             * @param {!Puppeteer.Frame} frame
-//             * @param {!Array<string>} expectedLifecycle
-//             * @return {boolean}
-//             */
-//            function checkLifecycle(frame, expectedLifecycle) {
-//                for (const event of expectedLifecycle) {
-//                    if (!frame._lifecycleEvents.has(event))
-//                        return false;
-//                }
-//                for (const child of frame.childFrames()) {
-//                    if (!checkLifecycle(child, expectedLifecycle))
-//                        return false;
-//                }
-//                return true;
-//            }
-        }
+            // We expect navigation to commit.
+            if (!checkLifecycle(mFrame, mWaitUntil)) return;
 
-//        public boolean checkLifecycle(Frame frame, ) {
-//
-//        }
+            mLifecycleWaiter.set(true);
+            if (StringUtil.equals(mFrame.getFrameInfo().getLoaderId(), mInitialLoaderId)
+                    && !mHasSameDocumentNavigation) return;
 
-        @Override
-        public void onNavigatedWithinDocument() {
+            if (mHasSameDocumentNavigation) mSameDocumentNavigationWaiter.set(true);
 
+            if (!StringUtil.equals(mFrame.getFrameInfo().getLoaderId(), mInitialLoaderId))
+                mNewDocumentNavigationWaiter.set(true);
         }
 
         @Override
-        public void onFrameDetached() {
+        public void onNavigatedWithinDocument(Frame frame) {
+            if (!Objects.equals(frame, mFrame)) return;
 
+            mHasSameDocumentNavigation = true;
+            onCheckLifecycleComplete();
         }
 
         @Override
-        public void onRequest() {
+        public void onFrameDetached(Frame frame) {
+            if (Objects.equals(mFrame, frame)) {
+                mTerminationWaiter.set(true);
+                return;
+            }
+            onCheckLifecycleComplete();
+        }
 
+        @Override
+        public void onRequest(Request request) {
+            if (!Objects.equals(mFrame, request.getFrame()) && !request.isNavigationRequest()) return;
+            mNavigationRequest = request;
+        }
+
+        public boolean checkLifecycle(Frame frame, WaitUntil waitUntil) {
+            if (Objects.isNull(waitUntil) || !frame.getLifecycleEvents().contains(waitUntil.getValue()))
+                return false;
+
+            for (Frame childFrame : frame.getChildFrames()) {
+                if (!checkLifecycle(childFrame, waitUntil)) return false;
+            }
+
+            return true;
         }
     };
 
-    // TODO: 2/18/20 add until and timeout
-    public LifecycleWatcher(FrameManager frameManager, Frame frame) {
-        mFrameManager = frameManager;
+    public LifecycleWatcher(Frame frame, WaitUntil waitUntil) {
+        mFrameManager = frame.getFrameManager();
         mFrame = frame;
+        mWaitUntil = waitUntil;
         mInitialLoaderId = frame.getFrameInfo().getLoaderId();
+
+        mFrameManager.addLifecycleListener(mLifeCycleListener);
+        mLifeCycleListener.onCheckLifecycleComplete();
+    }
+
+    public BlockingCell<Boolean> getSameDocumentNavigationWaiter() {
+        return mSameDocumentNavigationWaiter;
+    }
+
+    public BlockingCell<Boolean> getLifecycleWaiter() {
+        return mLifecycleWaiter;
+    }
+
+    public BlockingCell<Boolean> getNewDocumentNavigationWaiter() {
+        return mNewDocumentNavigationWaiter;
+    }
+
+    public BlockingCell<Boolean> getTerminationWaiter() {
+        return mTerminationWaiter;
+    }
+
+    public Response navigationResponse() {
+        return Objects.nonNull(mNavigationRequest) ? mNavigationRequest.getResponse() : null;
+    }
+
+    public void dispose() {
+        mFrameManager.removeLifecycleListener(mLifeCycleListener);
+        mSameDocumentNavigationWaiter = null;
+        mLifecycleWaiter = null;
+        mNewDocumentNavigationWaiter = null;
+        mTerminationWaiter = null;
     }
 
     public interface LifecycleListener {
@@ -85,12 +128,11 @@ public class LifecycleWatcher {
 
         void onCheckLifecycleComplete();
 
-        void onNavigatedWithinDocument();
+        void onNavigatedWithinDocument(Frame frame);
 
-        void onFrameDetached();
+        void onFrameDetached(Frame frame);
 
-        void onRequest();
+        void onRequest(Request request);
     }
-
 
 }

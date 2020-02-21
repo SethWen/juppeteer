@@ -61,7 +61,7 @@ public class ExecutionContext {
     private Object evaluateCodeBlock(boolean returnByValue, String jsCodeBlock) throws TimeoutException {
         String suffix = "\n" + Constants.EVALUATION_SCRIPT_URL + "\n";
         String expression = (jsCodeBlock + suffix);
-        System.out.println("fun: " + expression);
+        System.out.println("evaluateCodeBlock: " + expression);
         JSONObject json = mSession.doCall(RuntimeDomain.evaluateCommand, new JSONObject() {{
             put("expression", expression);
             put("contextId", mContextId);
@@ -87,7 +87,7 @@ public class ExecutionContext {
     private Object evaluateFunction(String pageFunction, boolean returnByValue, Object... args) throws TimeoutException {
         String suffix = "\n" + Constants.EVALUATION_SCRIPT_URL + "\n";
         pageFunction += suffix;
-        System.out.println("pageFunction: \n" + pageFunction);
+        System.out.println("evaluateFunction: \n" + pageFunction);
 
         JSONArray arguments = new JSONArray();
         for (Object arg : args) {

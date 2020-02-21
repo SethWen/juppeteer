@@ -1,11 +1,14 @@
 package com.modorone.juppeteer.component;
 
 import com.alibaba.fastjson.JSONObject;
+import com.modorone.juppeteer.CommandOptions;
 import com.modorone.juppeteer.Constants;
+import com.modorone.juppeteer.WaitUntil;
 import com.modorone.juppeteer.cdp.CDPSession;
 import com.modorone.juppeteer.component.network.NetworkManager;
 import com.modorone.juppeteer.component.network.Response;
 import com.modorone.juppeteer.exception.IllegalFrameException;
+import com.modorone.juppeteer.exception.RequestException;
 import com.modorone.juppeteer.protocol.PageDomain;
 import com.modorone.juppeteer.protocol.RuntimeDomain;
 import com.modorone.juppeteer.util.StringUtil;
@@ -13,6 +16,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeoutException;
 
 /**
@@ -27,13 +31,16 @@ public class FrameManager implements Frame.FrameListener {
 
     private static final String UTILITY_WORLD_NAME = "__juppeteer_utility_world__";
 
-    private Map<String, Frame> mFrames = new HashMap<>();
+    private Map<String, Frame> mFrames = new ConcurrentHashMap<>();
     private Map<Integer, ExecutionContext> mContexts = new HashMap<>();
     private CDPSession mSession;
     private Page mPage;
     private NetworkManager mNetworkManager;
     private Frame mMainFrame;
     private LifecycleWatcher.LifecycleListener mLifecycleListener;
+    private Set<LifecycleWatcher.LifecycleListener> mLifecycleListeners = ConcurrentHashMap.newKeySet();
+    //    private Set<String> mIsolatedWorlds = Collections.newSetFromMap(new ConcurrentHashMap<>());
+//    private Set<String> mIsolatedWorlds = ConcurrentHashMap.newKeySet();
     private Set<String> mIsolatedWorlds = new HashSet<>();
 
 
@@ -46,8 +53,8 @@ public class FrameManager implements Frame.FrameListener {
     public void init() throws TimeoutException {
         mSession.setFrameListener(this);
         mSession.doCall(PageDomain.enableCommand);
-        JSONObject json = mSession.doCall(PageDomain.getFrameTreeCommand);
-        handleFrameTree(json.getJSONObject("result").getJSONObject("frameTree"));
+        JSONObject json = mSession.doCall(PageDomain.getFrameTreeCommand).getJSONObject("result");
+        handleFrameTree(json.getJSONObject("frameTree"));
         mSession.doCall(PageDomain.setLifecycleEventsEnabledCommand, new JSONObject() {{
             put("enabled", true);
         }});
@@ -60,8 +67,19 @@ public class FrameManager implements Frame.FrameListener {
         return mPage;
     }
 
-    public void setLifecycleListener(LifecycleWatcher.LifecycleListener listener) {
-        mLifecycleListener = listener;
+    public void addLifecycleListener(LifecycleWatcher.LifecycleListener listener) {
+        if (Objects.nonNull(listener)) {
+            mLifecycleListeners.add(listener);
+            mNetworkManager.addRequestConsumer(listener::onRequest);
+        }
+    }
+
+    public boolean removeLifecycleListener(LifecycleWatcher.LifecycleListener listener) {
+        if (Objects.nonNull(listener)) {
+            return mLifecycleListeners.remove(listener)
+                    && mNetworkManager.removeRequestConsumer(listener::onRequest);
+        }
+        return false;
     }
 
     private void handleFrameTree(JSONObject frameTree) {
@@ -105,6 +123,7 @@ public class FrameManager implements Frame.FrameListener {
     }
 
     public Frame getFrame(String frameId) {
+        if (Objects.isNull(frameId)) return null;
         return mFrames.get(frameId);
     }
 
@@ -114,25 +133,58 @@ public class FrameManager implements Frame.FrameListener {
         return frames;
     }
 
-    public void navigateFrame(Frame frame, String url) {
-        Response navigateResponse = mNetworkManager.getNavigateResponse();
+    /**
+     * @param frame
+     * @param url
+     * @param options referer/waitUntil/timeout
+     * @throws RequestException
+     */
+    public Response navigateFrame(Frame frame, String url, CommandOptions options) throws RequestException {
+        String referer = options.getReferer();
+        if (StringUtil.isEmpty(referer) && Objects.nonNull(getNetworkManager().getExtraHTTPHeaders())) {
+            referer = getNetworkManager().getExtraHTTPHeaders().get("referer");
+        }
+        WaitUntil waitUntil = options.getWaitUntil();
+        if (Objects.isNull(waitUntil)) waitUntil = WaitUntil.LOAD;
+        long timeout = options.getTimeout();
+
+        LifecycleWatcher watcher = null;
         try {
-            logger.debug("navigateFrame: navigateResponse={}", navigateResponse);
-//            navigateResponse.getBuffer();
-        } catch (Exception e) {
-            e.printStackTrace();
+            watcher = new LifecycleWatcher(frame, waitUntil);
+            String finalReferer = referer;
+            JSONObject result = mSession.doCall(PageDomain.navigateCommand, new JSONObject() {{
+                put("url", url);
+                put("referer", finalReferer);
+                put("frameId", frame.getFrameInfo().getId());
+            }}).getJSONObject("result");
+            String errorText = result.getString("errorText");
+            if (!StringUtil.isEmpty(errorText)) {
+                throw new RequestException(errorText);
+            }
+
+            boolean ensureNewDocumentNavigation = StringUtil.nonEmpty(result.getString("loaderId"));
+            if (ensureNewDocumentNavigation) {
+                watcher.getNewDocumentNavigationWaiter().uninterruptibleGet(timeout);
+            } else {
+                watcher.getSameDocumentNavigationWaiter().uninterruptibleGet(timeout);
+            }
+            return watcher.navigationResponse();
+        } catch (TimeoutException e) {
+            throw new RequestException("request: " + url + " is timeout for " + timeout + "ms");
+        } finally {
+            if (Objects.nonNull(watcher)) watcher.dispose();
         }
     }
 
     @Override
     public void onFrameAttached(Frame.FrameInfo frameInfo) {
-        if (mFrames.containsKey(frameInfo.getId())) return;
+        if (Objects.nonNull(frameInfo.getId()) && mFrames.containsKey(frameInfo.getId())) return;
 
         if (StringUtil.isEmpty(frameInfo.getParentId()))
             throw new IllegalFrameException("parentFrameId is null");
 
         Frame frame = new Frame(mSession, this, frameInfo);
-        mFrames.put(frameInfo.getId(), frame);
+        if (Objects.nonNull(frameInfo.getId())) mFrames.put(frameInfo.getId(), frame);
 
         // TODO: 2/14/20
 //        this.emit(Events.FrameManager.FrameAttached, frame);
@@ -142,7 +194,7 @@ public class FrameManager implements Frame.FrameListener {
     public void onFrameNavigated(Frame.FrameInfo frameInfo) {
         logger.debug("onFrameNavigated: frameInfo={}", frameInfo);
         boolean isMainFrame = StringUtil.isEmpty(frameInfo.getParentId());
-        Frame frame = isMainFrame ? getMainFrame() : mFrames.get(frameInfo.getId());
+        Frame frame = isMainFrame ? getMainFrame() : getFrame(frameInfo.getId());
         if (!isMainFrame && Objects.isNull(frame)) {
             throw new IllegalFrameException("We either navigate top level or have old version of the navigated frame");
         }
@@ -158,13 +210,13 @@ public class FrameManager implements Frame.FrameListener {
         if (isMainFrame) {
             if (Objects.nonNull(frame)) {
                 // Update frame id to retain frame identity on cross-process navigation.
-                mFrames.remove(frame.getFrameInfo().getId());
+                if (Objects.nonNull(frame.getFrameInfo().getId())) mFrames.remove(frame.getFrameInfo().getId());
                 frame.setFrameInfo(frameInfo);
             } else {
                 // Initial main frame navigation.
                 frame = new Frame(mSession, this, frameInfo);
             }
-            mFrames.put(frameInfo.getId(), frame);
+            if (Objects.nonNull(frameInfo.getId())) mFrames.put(frameInfo.getId(), frame);
             mMainFrame = frame;
         }
         // TODO: 2/16/20 listener
@@ -176,31 +228,35 @@ public class FrameManager implements Frame.FrameListener {
             removeFramesRecursively(childFrame);
         }
         frame.detach();
-        mFrames.remove(frame.getFrameInfo().getId());
+        if (Objects.nonNull(frame.getFrameInfo().getId())) mFrames.remove(frame.getFrameInfo().getId());
         // TODO: 2/16/20 listener
 //        this.emit(Events.FrameManager.FrameDetached, frame);
     }
 
     @Override
     public void onFrameNavigatedWithinDocument(JSONObject event) {
-        Frame frame = mFrames.get(event.getString("frameId"));
+        Frame frame = getFrame(event.getString("frameId"));
         if (Objects.isNull(frame)) return;
 
         frame.navigatedWithinDocument(event.getString("url"));
 
+        // TODO: 2/21/20 check lifecycle
 //        this.emit(Events.FrameManager.FrameNavigatedWithinDocument, frame);
 //        this.emit(Events.FrameManager.FrameNavigated, frame);
+        mLifecycleListeners.forEach(lifecycleListener -> lifecycleListener.onNavigatedWithinDocument(frame));
     }
 
     @Override
     public void onFrameDetached(JSONObject event) {
-        Frame frame = mFrames.get(event.getString("frameId"));
+        Frame frame = getFrame(event.getString("frameId"));
         if (Objects.nonNull(frame)) removeFramesRecursively(frame);
+
+        mLifecycleListeners.forEach(lifecycleListener -> lifecycleListener.onFrameDetached(frame));
     }
 
     @Override
     public void onFrameStoppedLoading(JSONObject event) {
-        Frame frame = mFrames.get(event.getString("frameId"));
+        Frame frame = getFrame(event.getString("frameId"));
         if (Objects.nonNull(frame)) {
             frame.stopLoading();
 //        this.emit(Events.FrameManager.LifecycleEvent, frame);
@@ -216,8 +272,7 @@ public class FrameManager implements Frame.FrameListener {
         if (Objects.nonNull(auxData)) {
             frameId = auxData.getString("frameId");
         }
-        Frame frame = mFrames.get(frameId);
-//        DomWorld world = frame.getMainWorld();
+        Frame frame = getFrame(frameId);
         DomWorld world = null;
         if (Objects.nonNull(frame)) {
             if (Objects.nonNull(auxData) && auxData.getBoolean("isDefault")) {
@@ -263,10 +318,12 @@ public class FrameManager implements Frame.FrameListener {
     @Override
     public void onLifecycleEvent(JSONObject event) {
         logger.debug("onLifecycleEvent: event={}", event);
-        Frame frame = mFrames.get(event.getString("frameId"));
+        Frame frame = getFrame(event.getString("frameId"));
         if (Objects.isNull(frame)) return;
 
         frame.proceedLifecycle(event.getString("loaderId"), event.getString("name"));
+
+//        mLifecycleListeners.forEach(LifecycleWatcher.LifecycleListener::onCheckLifecycleComplete);
     }
 
     public NetworkManager getNetworkManager() {

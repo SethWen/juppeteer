@@ -289,7 +289,7 @@ public class JSHandle {
         }
 
         public void focus() throws TimeoutException {
-            evaluateFunction4Value("(element) => element.focus()", this);
+            evaluateFunction4Value("(element) => { element.focus(); return true; }", this);
         }
 
         public void type(String text, JSONObject options) throws TimeoutException {
@@ -363,13 +363,13 @@ public class JSHandle {
 
 
         public ElementHandle $(String selector) throws TimeoutException {
-            JSHandle.ElementHandle element = (ElementHandle) evaluateFunction4Handle(
+            JSHandle handle = evaluateFunction4Handle(
                     "(element, selector) => element.querySelector(selector)", this, selector);
 
-            if (Objects.nonNull(element)) return element;
+            JSHandle element = handle.asElement();
+            if (Objects.nonNull(element)) return (ElementHandle) element;
 
-            // 好奇怪这段代码
-//            element.dispose();
+            handle.dispose();
             return null;
         }
     }

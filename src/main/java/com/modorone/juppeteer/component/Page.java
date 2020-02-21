@@ -2,13 +2,17 @@ package com.modorone.juppeteer.component;
 
 import com.alibaba.fastjson.JSONObject;
 import com.modorone.juppeteer.Browser;
+import com.modorone.juppeteer.CommandOptions;
 import com.modorone.juppeteer.cdp.CDPSession;
 import com.modorone.juppeteer.component.input.Keyboard;
 import com.modorone.juppeteer.component.input.Mouse;
 import com.modorone.juppeteer.component.input.Touchscreen;
+import com.modorone.juppeteer.component.network.Response;
+import com.modorone.juppeteer.exception.RequestException;
 import com.modorone.juppeteer.pojo.Device;
 import com.modorone.juppeteer.pojo.Viewport;
 import com.modorone.juppeteer.protocol.*;
+import com.modorone.juppeteer.util.SystemUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -92,7 +96,11 @@ public class Page {
         return getMainFrame().getUrl();
     }
 
-    public String getContent() {
+    public String getTitle() throws TimeoutException, InterruptedException {
+        return getMainFrame().getTitle();
+    }
+
+    public String getContent() throws TimeoutException, InterruptedException {
         return getMainFrame().getContent();
     }
 
@@ -108,27 +116,27 @@ public class Page {
         return mFrameManager.getMainFrame();
     }
 
-    public Keyboard getKeyboard() {
+    Keyboard getKeyboard() {
         return mKeyboard;
     }
 
-    public Mouse getMouse() {
+    Mouse getMouse() {
         return mMouse;
     }
 
-    public Touchscreen getTouchscreen() {
+    Touchscreen getTouchscreen() {
         return mTouchscreen;
     }
 
-    public Coverage getCoverage() {
+    Coverage getCoverage() {
         return mCoverage;
     }
 
-    public Tracing getTracing() {
+    Tracing getTracing() {
         return mTracing;
     }
 
-    public Accessibility getAccessibility() {
+    Accessibility getAccessibility() {
         return mAccessibility;
     }
 
@@ -190,8 +198,8 @@ public class Page {
         }});
     }
 
-    public void navigate(String url) throws TimeoutException {
-        mFrameManager.getMainFrame().navigate(url);
+    public Response navigate(String url, CommandOptions options) throws RequestException {
+        return mFrameManager.getMainFrame().navigate(url, options);
     }
 
     public void reload() {
@@ -228,6 +236,38 @@ public class Page {
 
     public Object evaluateFunction4Handle(String pageFunction, Object... args) throws TimeoutException, InterruptedException {
         return mFrameManager.getMainFrame().evaluateFunction4Handle(pageFunction, args);
+    }
+
+    public void waitFor(long timeout) {
+        SystemUtil.sleep(timeout);
+    }
+
+    public void waitForNavigation() {
+
+    }
+
+    public void waitForSelector(String selector, JSONObject options) {
+
+    }
+
+    public void waitForXpath(String xpath, JSONObject options) {
+
+    }
+
+    public void waitForFunction(String function, JSONObject options) {
+
+    }
+
+    public void waitForRequest() {
+
+    }
+
+    public void waitForResponse() {
+
+    }
+
+    public void waitForFileChooser() {
+
     }
 
     public void hover(String selector) throws TimeoutException, InterruptedException {

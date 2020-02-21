@@ -1,5 +1,7 @@
 package com.modorone.juppeteer.protocol;
 
+import com.modorone.juppeteer.component.Page;
+
 /**
  * author: Shawn
  * time  : 2/14/20 12:57 PM

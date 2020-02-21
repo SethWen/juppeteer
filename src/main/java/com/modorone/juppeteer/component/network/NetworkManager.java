@@ -15,6 +15,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Consumer;
 
 /**
  * author: Shawn
@@ -43,6 +44,8 @@ public class NetworkManager implements NetworkListener {
     private Map<String, Request> mRequestId2RequestMap = new HashMap<>();
     private Set<String> mAttemptedAuthentications = new HashSet<>();
     private Request mNavigationRequest;
+
+    private Set<Consumer<Request>> mRequestConsumers = new HashSet<>();
 
     public NetworkManager(CDPSession session, FrameManager frameManager, boolean ignoreHTTPSErrors) {
         mSession = session;
@@ -104,6 +107,15 @@ public class NetworkManager implements NetworkListener {
     public void setRequestInterception(boolean enabled) throws TimeoutException {
         mUserRequestInterceptionEnabled = enabled;
         updateProtocolRequestInterception();
+    }
+
+    public void addRequestConsumer(Consumer<Request> consumer) {
+        if (Objects.nonNull(consumer)) mRequestConsumers.add(consumer);
+    }
+
+    public boolean removeRequestConsumer(Consumer<Request> consumer) {
+        if (Objects.nonNull(consumer)) return mRequestConsumers.remove(consumer);
+        return false;
     }
 
     private void updateProtocolRequestInterception() throws TimeoutException {
@@ -227,6 +239,9 @@ public class NetworkManager implements NetworkListener {
         if (request.isNavigationRequest()) {
             mNavigationRequest = request;
         }
+
+        mRequestConsumers.forEach(requestConsumer -> requestConsumer.accept(request));
+
 //        if (request.frame() !== this._frame || !request.isNavigationRequest())
 //            return;
 //        this._navigationRequest = request;
@@ -244,6 +259,7 @@ public class NetworkManager implements NetworkListener {
 //    const request = new Request(this._client, frame, interceptionId, this._userRequestInterceptionEnabled, event, redirectChain);
 //        this._requestIdToRequest.set(event.requestId, request);
 //        this.emit(Events.NetworkManager.Request, request);
+
     }
 
     public Response getNavigateResponse() {
@@ -258,7 +274,7 @@ public class NetworkManager implements NetworkListener {
         request.setResponse(response);
         request.getRedirectChain().add(request);
         // TODO: 2/17/20
-        response.terminateWaiting(null);
+        response.terminateWaiting(Pair.of(true, ""));
 //        response._bodyLoadedPromiseFulfill.call(null, new Error('Response body is unavailable for redirect responses'));
         mRequestId2RequestMap.remove(request.getRequestId());
         mAttemptedAuthentications.remove(request.getInterceptionId());
@@ -300,7 +316,7 @@ public class NetworkManager implements NetworkListener {
         Response response = request.getResponse();
         if (Objects.nonNull(response)) {
             // TODO: 2/17/20
-            response.terminateWaiting(null);
+            response.terminateWaiting(Pair.of(true, ""));
         }
         mRequestId2RequestMap.remove(request.getRequestId());
         mAttemptedAuthentications.remove(request.getInterceptionId());
@@ -316,7 +332,7 @@ public class NetworkManager implements NetworkListener {
         Response response = request.getResponse();
         if (Objects.nonNull(response)) {
             // TODO: 2/17/20
-            response.terminateWaiting(event.getString("errorText"));
+            response.terminateWaiting(Pair.of(false, event.getString("errorText")));
         }
         mRequestId2RequestMap.remove(request.getRequestId());
         mAttemptedAuthentications.remove(request.getInterceptionId());

@@ -1,14 +1,12 @@
 package com.modorone.juppeteer.component.network;
 
 import com.alibaba.fastjson.JSONObject;
-import com.modorone.juppeteer.cdp.BlockingCell;
+import com.modorone.juppeteer.util.BlockingCell;
 import com.modorone.juppeteer.cdp.CDPSession;
 import com.modorone.juppeteer.component.Frame;
 import com.modorone.juppeteer.exception.RequestException;
 import com.modorone.juppeteer.protocol.NetWorkDomain;
 import com.modorone.juppeteer.util.Pair;
-import com.modorone.juppeteer.util.StringUtil;
-import com.modorone.juppeteer.util.SystemUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,7 +35,7 @@ public class Response {
     private boolean mFromServiceWorker;
     private Map<String, String> mHeaders = new HashMap<>();
     private SecurityInfo mSecurityInfo;
-    private BlockingCell<String> mWaitingForResponseCell;
+    private BlockingCell<Pair<Boolean, String>> mResponseWaiter;
 
     public Response(CDPSession session, Request request, JSONObject responsePayload) {
         mSession = session;
@@ -56,7 +54,7 @@ public class Response {
         JSONObject json = responsePayload.getJSONObject("headers");
         json.forEach((key, value) -> mHeaders.put(key.toLowerCase(), (String) value));
 
-        mWaitingForResponseCell = new BlockingCell<>();
+        mResponseWaiter = new BlockingCell<>();
     }
 
     //    constructor(client, request, responsePayload) {
@@ -111,22 +109,22 @@ public class Response {
         return mSecurityInfo;
     }
 
-    public void terminateWaiting(String errorText) {
-        logger.debug("terminateWaiting: errorText={}", errorText);
-        if (Objects.nonNull(mWaitingForResponseCell)) {
-            mWaitingForResponseCell.set(errorText);
-        }
+    public void terminateWaiting(Pair<Boolean, String> info) {
+        logger.debug("terminateWaiting: info={}", info);
+        if (Objects.nonNull(mResponseWaiter)) mResponseWaiter.set(info);
     }
 
-    public void getBuffer() throws TimeoutException {
-        if (Objects.nonNull(mWaitingForResponseCell)) {
-            String s = mWaitingForResponseCell.uninterruptibleGet();
-            logger.debug("getBuffer: test=");
-            if (!StringUtil.isEmpty(s)) throw new RequestException(s);
+    public String getBuffer() throws TimeoutException {
+        if (Objects.nonNull(mResponseWaiter)) {
+            Pair<Boolean, String> info = mResponseWaiter.uninterruptibleGet();
+            // request failed
+            if (!info.getFirst()) throw new RequestException(info.getSecond());
+
             JSONObject response = mSession.doCall(NetWorkDomain.getResponseBodyCommand, new JSONObject() {{
                 put("requestId", mRequest.getRequestId());
-            }});
+            }}).getJSONObject("result");
             logger.debug("getBuffer: buffer={}", response);
+            return response.toJSONString();
         }
 //        if (!this._contentPromise) {
 //            this._contentPromise = this._bodyLoadedPromise.then(async error => {
@@ -138,17 +136,15 @@ public class Response {
 //            return Buffer.from(response.body, response.base64Encoded ? 'base64' : 'utf8');
 //      });
 //        }
-        SystemUtil.sleep(5000);
-        // TODO: 2/17/20 wait for loaded
-
+        return null;
     }
 
-    public void getText() throws TimeoutException {
-        getBuffer();
+    public String getText() throws TimeoutException {
+        return getBuffer();
     }
 
-    public void getJson() throws TimeoutException {
-        getBuffer();
+    public String getJson() throws TimeoutException {
+        return getBuffer();
     }
 
     public Request getRequest() {
