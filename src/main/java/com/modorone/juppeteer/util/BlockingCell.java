@@ -101,7 +101,7 @@ public class BlockingCell<T> {
      * @param timeout timeout in milliseconds. -1 means 'infinity': never time out
      * @return the waited-for value
      */
-    public synchronized T uninterruptibleGet(int timeout) throws TimeoutException {
+    public synchronized T uninterruptibleGet(long timeout) throws TimeoutException {
         long now = System.nanoTime() / NANOS_IN_MILLI;
         long runTime = now + timeout;
         boolean wasInterrupted = false;
