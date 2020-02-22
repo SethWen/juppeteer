@@ -64,7 +64,7 @@ public class Juppeteer {
      * @param {!Launcher.ChromeArgOptions=} options
      * @return {!Array<string>}
      */
-    public Options defaultArgs(Options options) {
+    public List<String> defaultArgs(Options options) {
         return mLauncher.defaultArgs(options);
     }
 

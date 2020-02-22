@@ -2,7 +2,7 @@ package com.modorone.juppeteer.component.input;
 
 import com.alibaba.fastjson.JSONObject;
 import com.modorone.juppeteer.cdp.CDPSession;
-import com.modorone.juppeteer.protocol.InputDomain;
+import com.modorone.juppeteer.cdp.InputDomain;
 import com.modorone.juppeteer.util.StringUtil;
 import com.modorone.juppeteer.util.SystemUtil;
 

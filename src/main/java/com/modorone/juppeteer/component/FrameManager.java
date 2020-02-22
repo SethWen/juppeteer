@@ -9,8 +9,8 @@ import com.modorone.juppeteer.component.network.NetworkManager;
 import com.modorone.juppeteer.component.network.Response;
 import com.modorone.juppeteer.exception.IllegalFrameException;
 import com.modorone.juppeteer.exception.RequestException;
-import com.modorone.juppeteer.protocol.PageDomain;
-import com.modorone.juppeteer.protocol.RuntimeDomain;
+import com.modorone.juppeteer.cdp.PageDomain;
+import com.modorone.juppeteer.cdp.RuntimeDomain;
 import com.modorone.juppeteer.util.StringUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,12 +32,11 @@ public class FrameManager implements Frame.FrameListener {
     private static final String UTILITY_WORLD_NAME = "__juppeteer_utility_world__";
 
     private Map<String, Frame> mFrames = new ConcurrentHashMap<>();
-    private Map<Integer, ExecutionContext> mContexts = new HashMap<>();
+    private Map<Integer, ExecutionContext> mContexts = new ConcurrentHashMap<>();
     private CDPSession mSession;
     private Page mPage;
     private NetworkManager mNetworkManager;
     private Frame mMainFrame;
-    private LifecycleWatcher.LifecycleListener mLifecycleListener;
     private Set<LifecycleWatcher.LifecycleListener> mLifecycleListeners = ConcurrentHashMap.newKeySet();
     //    private Set<String> mIsolatedWorlds = Collections.newSetFromMap(new ConcurrentHashMap<>());
 //    private Set<String> mIsolatedWorlds = ConcurrentHashMap.newKeySet();
@@ -83,7 +82,7 @@ public class FrameManager implements Frame.FrameListener {
     }
 
     private void handleFrameTree(JSONObject frameTree) {
-        logger.debug("handleFrameTree: frameTree={}", frameTree);
+//        logger.debug("handleFrameTree: frameTree={}", frameTree);
         Frame.FrameInfo frameInfo = frameTree.getJSONObject("frame").toJavaObject(Frame.FrameInfo.class);
         if (!StringUtil.isEmpty(frameInfo.getParentId())) {
             onFrameAttached(frameInfo);
@@ -183,7 +182,7 @@ public class FrameManager implements Frame.FrameListener {
         if (StringUtil.isEmpty(frameInfo.getParentId()))
             throw new IllegalFrameException("parentFrameId is null");
 
-        Frame frame = new Frame(mSession, this, frameInfo);
+        Frame frame = new Frame(this, mFrames.get(frameInfo.getParentId()), frameInfo);
         if (Objects.nonNull(frameInfo.getId())) mFrames.put(frameInfo.getId(), frame);
 
         // TODO: 2/14/20
@@ -192,7 +191,6 @@ public class FrameManager implements Frame.FrameListener {
 
     @Override
     public void onFrameNavigated(Frame.FrameInfo frameInfo) {
-        logger.debug("onFrameNavigated: frameInfo={}", frameInfo);
         boolean isMainFrame = StringUtil.isEmpty(frameInfo.getParentId());
         Frame frame = isMainFrame ? getMainFrame() : getFrame(frameInfo.getId());
         if (!isMainFrame && Objects.isNull(frame)) {
@@ -214,7 +212,7 @@ public class FrameManager implements Frame.FrameListener {
                 frame.setFrameInfo(frameInfo);
             } else {
                 // Initial main frame navigation.
-                frame = new Frame(mSession, this, frameInfo);
+                frame = new Frame(this, null, frameInfo);
             }
             if (Objects.nonNull(frameInfo.getId())) mFrames.put(frameInfo.getId(), frame);
             mMainFrame = frame;
@@ -265,7 +263,6 @@ public class FrameManager implements Frame.FrameListener {
 
     @Override
     public void onExecutionContextCreated(JSONObject contextPayload) {
-        logger.debug("onExecutionContextCreated: context={}", contextPayload);
         // {"auxData":{"isDefault":true,"frameId":"4AA1B0CC31419133EBCE07FD94056608","type":"default"},"origin":"chrome-search://most-visited","name":"","id":4}
         String frameId = null;
         JSONObject auxData = contextPayload.getJSONObject("auxData");
@@ -317,13 +314,11 @@ public class FrameManager implements Frame.FrameListener {
 
     @Override
     public void onLifecycleEvent(JSONObject event) {
-        logger.debug("onLifecycleEvent: event={}", event);
         Frame frame = getFrame(event.getString("frameId"));
         if (Objects.isNull(frame)) return;
 
         frame.proceedLifecycle(event.getString("loaderId"), event.getString("name"));
-
-//        mLifecycleListeners.forEach(LifecycleWatcher.LifecycleListener::onCheckLifecycleComplete);
+        mLifecycleListeners.forEach(LifecycleWatcher.LifecycleListener::onCheckLifecycleComplete);
     }
 
     public NetworkManager getNetworkManager() {

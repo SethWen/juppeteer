@@ -7,7 +7,6 @@ import com.modorone.juppeteer.component.Frame;
 import com.modorone.juppeteer.component.network.NetworkListener;
 import com.modorone.juppeteer.component.Target;
 import com.modorone.juppeteer.exception.WebSocketCreationException;
-import com.modorone.juppeteer.protocol.*;
 import com.modorone.juppeteer.util.BlockingCell;
 import com.modorone.juppeteer.util.StringUtil;
 import com.modorone.juppeteer.util.SystemUtil;
@@ -182,7 +181,7 @@ public class Connection extends WebSocketListener {
         }
 
         json.put("id", id);
-        logger.debug("doCall: \n\trequest={}\n\t", json.toJSONString());
+        logger.debug("SEND => {}", json.toJSONString());
         mWebSocket.send(json.toJSONString());
         String reply;
         try {
@@ -210,6 +209,7 @@ public class Connection extends WebSocketListener {
     @Override
     public void onMessage(WebSocket webSocket, String text) {
         super.onMessage(webSocket, text);
+        logger.debug("<= RECV {}", text);
         JSONObject json = JSON.parseObject(text);
         if (StringUtil.equals(TargetDomain.attachedToTargetEvent, json.getString("method"))) {
             String sessionId = json.getJSONObject("params").getString("sessionId");
@@ -226,10 +226,10 @@ public class Connection extends WebSocketListener {
         }
 
         if (Objects.isNull(json.getInteger("id"))) {      // event
-            logger.debug("onMessage: event={}", text);
+//            logger.debug("onMessage: event={}", text);
             triggerListener(json);
         } else {    // rpc reply
-            logger.debug("onMessage: reply={}", text);
+//            logger.debug("onMessage: reply={}", text);
             synchronized (mContinuationMap) {
                 Integer id = json.getInteger("id");
                 BlockingCell<String> blocker = mContinuationMap.remove(id);
@@ -293,10 +293,12 @@ public class Connection extends WebSocketListener {
                 mFrameListener.onLifecycleEvent(json.getJSONObject("params"));
                 break;
             case FetchDomain.requestPausedEvent:
-                mNetworkListener.onRequestPaused(json.getJSONObject("params"));
+                // 递归
+//                mNetworkListener.onRequestPaused(json.getJSONObject("params"));
                 break;
             case FetchDomain.authRequiredEvent:
-                mNetworkListener.onAuthRequired(json.getJSONObject("params"));
+                // 递归
+//                mNetworkListener.onAuthRequired(json.getJSONObject("params"));
                 break;
             case NetWorkDomain.requestWillBeSentEvent:
                 mNetworkListener.onRequestWillBeSent(json.getJSONObject("params"));

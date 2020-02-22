@@ -92,7 +92,7 @@ public class DomWorld {
         return mHasContext;
     }
 
-    private void detach() {
+    public void detach() {
         mDetached = true;
         for (WaitTask waitTask : mWaitTasks) {
             waitTask.terminate();

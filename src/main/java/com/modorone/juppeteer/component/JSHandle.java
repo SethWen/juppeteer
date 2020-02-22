@@ -4,9 +4,9 @@ import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.modorone.juppeteer.cdp.CDPSession;
 import com.modorone.juppeteer.exception.JuppeteerException;
-import com.modorone.juppeteer.protocol.DOMDomain;
-import com.modorone.juppeteer.protocol.PageDomain;
-import com.modorone.juppeteer.protocol.RuntimeDomain;
+import com.modorone.juppeteer.cdp.DOMDomain;
+import com.modorone.juppeteer.cdp.PageDomain;
+import com.modorone.juppeteer.cdp.RuntimeDomain;
 import com.modorone.juppeteer.util.StringUtil;
 
 import java.util.*;

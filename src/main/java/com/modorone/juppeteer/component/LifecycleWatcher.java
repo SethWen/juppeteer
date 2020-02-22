@@ -40,7 +40,7 @@ public class LifecycleWatcher {
             // We expect navigation to commit.
             if (!checkLifecycle(mFrame, mWaitUntil)) return;
 
-            mLifecycleWaiter.set(true);
+            mLifecycleWaiter.setIfUnset(true); // 这个值可能需要多次设置？如何处理呢？ shit！！！ 用 set() 有坑此处
             if (StringUtil.equals(mFrame.getFrameInfo().getLoaderId(), mInitialLoaderId)
                     && !mHasSameDocumentNavigation) return;
 
@@ -69,7 +69,7 @@ public class LifecycleWatcher {
 
         @Override
         public void onRequest(Request request) {
-            if (!Objects.equals(mFrame, request.getFrame()) && !request.isNavigationRequest()) return;
+            if (!Objects.equals(mFrame, request.getFrame()) || !request.isNavigationRequest()) return;
             mNavigationRequest = request;
         }
 

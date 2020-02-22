@@ -3,7 +3,7 @@ package com.modorone.juppeteer.component;
 import com.alibaba.fastjson.JSONObject;
 import com.modorone.juppeteer.cdp.CDPSession;
 import com.modorone.juppeteer.pojo.Viewport;
-import com.modorone.juppeteer.protocol.EmulationDomain;
+import com.modorone.juppeteer.cdp.EmulationDomain;
 
 import java.util.concurrent.TimeoutException;
 

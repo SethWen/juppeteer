@@ -46,18 +46,18 @@ public class Test {
             } catch (Exception e ) {
                 e.printStackTrace();
             }
-            System.out.println("finished..............");
+            System.out.println("finished......111111111111........");
 
-//            try {
-//                Response response = page.navigate("http://www.sina.com",
-//                        CommandOptions.getDefault()
-//                                .setWaitUntil(WaitUntil.NETWORK_IDLE)
-//                                .setTimeout(5000));
-//                System.out.println("222222222222222---------" + response.getText());
-//            } catch (Exception e){
-//                e.printStackTrace();
-//            }
-//            System.out.println("finished2222222222222222................");
+            try {
+                Response response = page.navigate("https://ip.cn",
+                        CommandOptions.getDefault()
+                                .setWaitUntil(WaitUntil.NETWORK_IDLE)
+                                .setTimeout(5000));
+                System.out.println("222222222222222---------" + response.getText());
+            } catch (Exception e){
+                e.printStackTrace();
+            }
+            System.out.println("finished2222222222222222................");
 
         } catch (Exception e) {
             e.printStackTrace();

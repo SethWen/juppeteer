@@ -4,14 +4,13 @@ import com.alibaba.fastjson.JSONObject;
 import com.alibaba.fastjson.annotation.JSONField;
 import com.modorone.juppeteer.CommandOptions;
 import com.modorone.juppeteer.util.BlockingCell;
-import com.modorone.juppeteer.cdp.CDPSession;
 import com.modorone.juppeteer.component.network.Response;
 import com.modorone.juppeteer.exception.RequestException;
 import com.modorone.juppeteer.util.StringUtil;
 
-import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeoutException;
 
 /**
@@ -22,22 +21,24 @@ import java.util.concurrent.TimeoutException;
  */
 public class Frame {
 
-    private CDPSession mSession;
     private FrameManager mFrameManager;
-    private Set<Frame> mChildFrames = new HashSet<>();
-    private Set<String> mLifecycleEvents = new HashSet<>();
+    private Frame mParentFrame;
+    private Set<Frame> mChildFrames = ConcurrentHashMap.newKeySet();
+    private Set<String> mLifecycleEvents = ConcurrentHashMap.newKeySet();
     private FrameInfo mFrameInfo;
 
     private DomWorld mMainWorld;
     private DomWorld mSecondaryWorld;
 
+    private boolean mIsDetached;
 
-    public Frame(CDPSession session, FrameManager frameManager, FrameInfo frameInfo) {
-        mSession = session;
+
+    public Frame(FrameManager frameManager, Frame parentFrame, FrameInfo frameInfo) {
         mFrameManager = frameManager;
+        mParentFrame = parentFrame;
         mFrameInfo = frameInfo;
+        mFrameInfo.setLoaderId("");
 
-        Frame parentFrame = getParentFrame();
         if (Objects.nonNull(parentFrame)) {
             getParentFrame().addChildFrame(this);
         }
@@ -60,11 +61,11 @@ public class Frame {
     }
 
     public void addChildFrame(Frame frame) {
-        mChildFrames.add(frame);
+        if (Objects.nonNull(frame)) mChildFrames.add(frame);
     }
 
     public void removeChildFrame(Frame frame) {
-        mChildFrames.remove(frame);
+        if (Objects.nonNull(frame)) mChildFrames.remove(frame);
     }
 
     public void waitForNavigation(/*option*/) {
@@ -110,7 +111,7 @@ public class Frame {
             mFrameInfo.setLoaderId(loaderId);
             mLifecycleEvents.clear();
         }
-        mLifecycleEvents.add(name);
+        if (Objects.nonNull(name)) mLifecycleEvents.add(name);
     }
 
     public void navigatedWithinDocument(String url) {
@@ -123,16 +124,11 @@ public class Frame {
     }
 
     public void detach() {
-//         this._detached = true;
-//    this._mainWorld._detach();
-//    this._secondaryWorld._detach();
-//    if (this._parentFrame)
-//      this._parentFrame._childFrames.delete(this);
-//    this._parentFrame = null;
-        // TODO: 2/16/20 other logic
-        if (Objects.nonNull(getParentFrame())) {
-            getParentFrame().removeChildFrame(this);
-        }
+        mIsDetached = true;
+        mMainWorld.detach();
+        mSecondaryWorld.detach();
+        if (Objects.nonNull(mParentFrame)) mParentFrame.getChildFrames().remove(this);
+        mParentFrame = null;
     }
 
     private void navigated(/*url, name, navigationId*/) {
@@ -225,7 +221,7 @@ public class Frame {
     }
 
     public boolean isDetached() {
-        return false;
+        return mIsDetached;
     }
 
     public Set<Frame> getChildFrames() {
@@ -233,7 +229,7 @@ public class Frame {
     }
 
     public Frame getParentFrame() {
-        return mFrameManager.getFrame(mFrameInfo.getParentId());
+        return mParentFrame;
     }
 
     public String getUrl() {

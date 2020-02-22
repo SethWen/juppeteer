@@ -8,8 +8,8 @@ import com.modorone.juppeteer.cdp.Connection;
 import com.modorone.juppeteer.component.Page;
 import com.modorone.juppeteer.component.Target;
 import com.modorone.juppeteer.exception.IllegalTargetException;
-import com.modorone.juppeteer.protocol.BrowserDomain;
-import com.modorone.juppeteer.protocol.TargetDomain;
+import com.modorone.juppeteer.cdp.BrowserDomain;
+import com.modorone.juppeteer.cdp.TargetDomain;
 import com.modorone.juppeteer.util.StringUtil;
 import com.modorone.juppeteer.util.SystemUtil;
 import org.slf4j.Logger;
@@ -42,7 +42,6 @@ public class Browser {
         public void onCreate(Target.TargetInfo targetInfo, Supplier<CDPSession> sessionSupplier) {
             Target target = Target.create(Browser.this, targetInfo, sessionSupplier);
             mTargets.put(targetInfo.getTargetId(), target);
-            logger.debug("onCreate: targets={}", mTargets);
         }
 
         @Override

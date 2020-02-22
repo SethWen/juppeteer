@@ -4,7 +4,7 @@ import com.alibaba.fastjson.JSONObject;
 import com.modorone.juppeteer.cdp.CDPSession;
 import com.modorone.juppeteer.component.Frame;
 import com.modorone.juppeteer.exception.RequestException;
-import com.modorone.juppeteer.protocol.FetchDomain;
+import com.modorone.juppeteer.cdp.FetchDomain;
 import com.modorone.juppeteer.util.StringUtil;
 
 import java.util.HashMap;

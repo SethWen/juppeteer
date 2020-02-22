@@ -5,7 +5,7 @@ import com.modorone.juppeteer.util.BlockingCell;
 import com.modorone.juppeteer.cdp.CDPSession;
 import com.modorone.juppeteer.component.Frame;
 import com.modorone.juppeteer.exception.RequestException;
-import com.modorone.juppeteer.protocol.NetWorkDomain;
+import com.modorone.juppeteer.cdp.NetWorkDomain;
 import com.modorone.juppeteer.util.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -110,7 +110,6 @@ public class Response {
     }
 
     public void terminateWaiting(Pair<Boolean, String> info) {
-        logger.debug("terminateWaiting: info={}", info);
         if (Objects.nonNull(mResponseWaiter)) mResponseWaiter.set(info);
     }
 

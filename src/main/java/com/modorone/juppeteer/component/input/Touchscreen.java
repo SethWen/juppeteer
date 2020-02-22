@@ -3,8 +3,8 @@ package com.modorone.juppeteer.component.input;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.modorone.juppeteer.cdp.CDPSession;
-import com.modorone.juppeteer.protocol.InputDomain;
-import com.modorone.juppeteer.protocol.RuntimeDomain;
+import com.modorone.juppeteer.cdp.InputDomain;
+import com.modorone.juppeteer.cdp.RuntimeDomain;
 
 import java.util.Objects;
 import java.util.concurrent.TimeoutException;

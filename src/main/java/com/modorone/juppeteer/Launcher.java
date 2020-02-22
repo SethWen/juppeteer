@@ -5,6 +5,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
 
@@ -40,10 +41,9 @@ public class Launcher {
         chromeArguments.add("--user-data-dir=userdata");
         // for child process to start browser instance
 
-        BrowserRunner browserRunner = new BrowserRunner();
+        BrowserRunner browserRunner = new BrowserRunner(Constants.executablePath, defaultArgs(null));
         browserRunner.run();
         Connection connection = browserRunner.createConnection();
-        logger.debug("launch: connection={}", connection);
         return Browser.create(browserRunner.getProcess(), connection);
     }
 
@@ -57,7 +57,31 @@ public class Launcher {
         return Constants.executablePath;
     }
 
-    public Options defaultArgs(Options options) {
+    public List<String> defaultArgs(Options options) {
+        List<String> args = Arrays.asList(
+                "--disable-background-networking",
+                "--enable-features=NetworkService,NetworkServiceInProcess",
+                "--disable-background-timer-throttling",
+                "--disable-backgrounding-occluded-windows",
+                "--disable-breakpad",
+                "--disable-client-side-phishing-detection",
+                "--disable-component-extensions-with-background-pages",
+                "--disable-default-apps",
+                "--disable-dev-shm-usage",
+                "--disable-extensions",
+                "--disable-features=TranslateUI",
+                "--disable-hang-monitor",
+                "--disable-ipc-flooding-protection",
+                "--disable-popup-blocking",
+                "--disable-prompt-on-repost",
+                "--disable-renderer-backgrounding",
+                "--disable-sync --force-color-profile=srgb",
+                "--metrics-recording-only --no-first-run --enable-automation",
+                "--password-store=basic --use-mock-keychain",
+                "about:blank",
+                "--remote-debugging-port=0",
+                "--user-data-dir=/data/debug"
+        );
 //          const {
 //            devtools = false,
 //                    headless = !devtools,
@@ -80,6 +104,6 @@ public class Launcher {
 //        chromeArguments.push('about:blank');
 //        chromeArguments.push(...args);
 //        return chromeArguments;
-        return null;
+        return args;
     }
 }

@@ -3,9 +3,7 @@ package com.modorone.juppeteer;
 
 import com.modorone.juppeteer.util.SystemUtil;
 
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
@@ -21,8 +19,15 @@ public class tmp {
     public static void main(String[] args) {
 //        WaitUntil load = WaitUntil.LOAD;
 //        System.out.println(load);
-        Set<String> objects = ConcurrentHashMap.newKeySet();
-        objects.add(null);
+//        Set<String> objects = ConcurrentHashMap.newKeySet();
+//        objects.add(null);
+
+        List<String> names = Arrays.asList("shawn", "jack");
+        names.forEach(name -> {
+            SystemUtil.sleep(2000);
+            System.out.println(name);
+        });
+        System.out.println("hahahh");
 
     }
 

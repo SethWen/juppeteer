@@ -6,7 +6,7 @@ import com.modorone.juppeteer.Constants;
 import com.modorone.juppeteer.cdp.CDPSession;
 import com.modorone.juppeteer.exception.JSEvaluationException;
 import com.modorone.juppeteer.exception.JuppeteerException;
-import com.modorone.juppeteer.protocol.RuntimeDomain;
+import com.modorone.juppeteer.cdp.RuntimeDomain;
 import com.modorone.juppeteer.util.StringUtil;
 
 import java.util.Objects;

@@ -1,4 +1,4 @@
-package com.modorone.juppeteer.protocol;
+package com.modorone.juppeteer.cdp;
 
 public interface InputDomain {
 

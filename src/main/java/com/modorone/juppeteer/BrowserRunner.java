@@ -2,14 +2,14 @@ package com.modorone.juppeteer;
 
 import com.modorone.juppeteer.cdp.Connection;
 import com.modorone.juppeteer.exception.BrowserCreationException;
+import com.modorone.juppeteer.exception.JuppeteerException;
 import com.modorone.juppeteer.util.StringUtil;
 import com.modorone.juppeteer.util.SystemUtil;
 import com.modorone.juppeteer.util.ThreadExecutor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Objects;
-import java.util.Scanner;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static java.util.Locale.ENGLISH;
@@ -26,13 +26,27 @@ public class BrowserRunner {
     private String mWsEndPoint;
     private Process mProcess;
 
+    private String mExecutablePath = Constants.executablePath;
+    private List<String> mArgs = new ArrayList<>();
+
+    public BrowserRunner(String executablePath, List<String> args) {
+        if (StringUtil.isEmpty(executablePath)) throw new JuppeteerException("executable path can not be empty");
+
+        mExecutablePath = executablePath;
+        mArgs = args;
+    }
+
     public void run() throws BrowserCreationException {
         AtomicReference<Exception> exceptionReference = new AtomicReference<>();
         ThreadExecutor.getInstance().execute(() -> {
             try {
                 ProcessBuilder builder = new ProcessBuilder();
-                String command = Constants.executablePath;
-                builder.command(command, "--remote-debugging-port=9222", "--user-data-dir=/data/debug"); // todo redirect stdio
+                List<String> command = new ArrayList<String>() {{
+                    add(mExecutablePath);
+                    addAll(mArgs);
+                }};
+                logger.debug("run: command={}", String.join(" ", command));
+                builder.command(command); // todo redirect stdio
                 mProcess = builder.start();
                 Scanner scanner = new Scanner(mProcess.getErrorStream());
                 while (scanner.hasNext()) {

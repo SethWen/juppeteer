@@ -5,9 +5,9 @@ import com.alibaba.fastjson.JSONObject;
 import com.modorone.juppeteer.cdp.CDPSession;
 import com.modorone.juppeteer.component.Frame;
 import com.modorone.juppeteer.component.FrameManager;
-import com.modorone.juppeteer.protocol.FetchDomain;
-import com.modorone.juppeteer.protocol.NetWorkDomain;
-import com.modorone.juppeteer.protocol.SecurityDomain;
+import com.modorone.juppeteer.cdp.FetchDomain;
+import com.modorone.juppeteer.cdp.NetWorkDomain;
+import com.modorone.juppeteer.cdp.SecurityDomain;
 import com.modorone.juppeteer.util.Pair;
 import com.modorone.juppeteer.util.StringUtil;
 import org.slf4j.Logger;
@@ -43,7 +43,6 @@ public class NetworkManager implements NetworkListener {
     private Map<String, JSONObject> mRequestId2RequestWillBeSentEventMap = new HashMap<>();
     private Map<String, Request> mRequestId2RequestMap = new HashMap<>();
     private Set<String> mAttemptedAuthentications = new HashSet<>();
-    private Request mNavigationRequest;
 
     private Set<Consumer<Request>> mRequestConsumers = new HashSet<>();
 
@@ -146,12 +145,12 @@ public class NetworkManager implements NetworkListener {
     public void onRequestPaused(JSONObject event) {
         if (!mUserRequestInterceptionEnabled && mProtocolRequestInterceptionEnabled) {
             // FIXME: 2/18/20 存在递归调用，如何处理？
-            try {
-                mSession.doCall(FetchDomain.continueRequestCommand, new JSONObject() {{
-                    put("requestId", event.getString("requestId"));
-                }});
-            } catch (Exception ignore) {
-            }
+//            try {
+//                mSession.doCall(FetchDomain.continueRequestCommand, new JSONObject() {{
+//                    put("requestId", event.getString("requestId"));
+//                }});
+//            } catch (Exception ignore) {
+//            }
         }
         String requestId = event.getString("networkId");
         String interceptionId = event.getString("requestId");
@@ -197,7 +196,7 @@ public class NetworkManager implements NetworkListener {
         if (mProtocolRequestInterceptionEnabled && StringUtil.startsWith(url, "data:")) {
             String requestId = event.getString("requestId");
             String interceptionId = mRequestId2InterceptionIdMap.get(requestId);
-            if (!StringUtil.isEmpty(interceptionId)) {
+            if (StringUtil.nonEmpty(interceptionId)) {
                 onRequest(event, interceptionId);
                 mRequestId2InterceptionIdMap.remove(requestId);
             } else {
@@ -222,10 +221,10 @@ public class NetworkManager implements NetworkListener {
     }
 
     public void onRequest(JSONObject event, String interceptionId) {
-        logger.debug("onRequest: event={},interceptionId={}", event, interceptionId);
         List<Request> redirectChain = new ArrayList<>();
         if (Objects.nonNull(event.getJSONObject("redirectResponse"))) {
             Request request = mRequestId2RequestMap.get(event.getString("requestId"));
+            // If we connect late to the target, we could have missed the requestWillBeSent event.
             if (Objects.nonNull(request)) {
                 handleRequestRedirect(request, event.getJSONObject("redirectResponse"));
                 redirectChain = request.getRedirectChain();
@@ -236,37 +235,7 @@ public class NetworkManager implements NetworkListener {
         Request request = new Request(mSession, frame, interceptionId, mUserRequestInterceptionEnabled, event, redirectChain);
         mRequestId2RequestMap.put(event.getString("requestId"), request);
 
-        if (request.isNavigationRequest()) {
-            mNavigationRequest = request;
-        }
-
         mRequestConsumers.forEach(requestConsumer -> requestConsumer.accept(request));
-
-//        if (request.frame() !== this._frame || !request.isNavigationRequest())
-//            return;
-//        this._navigationRequest = request;
-
-//        let redirectChain = [];
-//        if (event.redirectResponse) {
-//      const request = this._requestIdToRequest.get(event.requestId);
-//            // If we connect late to the target, we could have missed the requestWillBeSent event.
-//            if (request) {
-//                this._handleRequestRedirect(request, event.redirectResponse);
-//                redirectChain = request._redirectChain;
-//            }
-//        }
-//    const frame = event.frameId ? this._frameManager.frame(event.frameId) : null;
-//    const request = new Request(this._client, frame, interceptionId, this._userRequestInterceptionEnabled, event, redirectChain);
-//        this._requestIdToRequest.set(event.requestId, request);
-//        this.emit(Events.NetworkManager.Request, request);
-
-    }
-
-    public Response getNavigateResponse() {
-        if (Objects.nonNull(mNavigationRequest)) {
-            return mNavigationRequest.getResponse();
-        }
-        return null;
     }
 
     private void handleRequestRedirect(Request request, JSONObject redirectResponse) {
@@ -275,15 +244,9 @@ public class NetworkManager implements NetworkListener {
         request.getRedirectChain().add(request);
         // TODO: 2/17/20
         response.terminateWaiting(Pair.of(true, ""));
-//        response._bodyLoadedPromiseFulfill.call(null, new Error('Response body is unavailable for redirect responses'));
         mRequestId2RequestMap.remove(request.getRequestId());
         mAttemptedAuthentications.remove(request.getInterceptionId());
-// const response = new Response(this._client, request, responsePayload);
-//        request._response = response;
-//        request._redirectChain.push(request);
-//        response._bodyLoadedPromiseFulfill.call(null, new Error('Response body is unavailable for redirect responses'));
-//        this._requestIdToRequest.delete(request._requestId);
-//        this._attemptedAuthentications.delete(request._interceptionId);
+
 //        this.emit(Events.NetworkManager.Response, response);
 //        this.emit(Events.NetworkManager.RequestFinished, request);
     }

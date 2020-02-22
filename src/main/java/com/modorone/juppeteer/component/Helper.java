@@ -3,7 +3,7 @@ package com.modorone.juppeteer.component;
 import com.alibaba.fastjson.JSONObject;
 import com.modorone.juppeteer.cdp.CDPSession;
 import com.modorone.juppeteer.exception.JuppeteerException;
-import com.modorone.juppeteer.protocol.RuntimeDomain;
+import com.modorone.juppeteer.cdp.RuntimeDomain;
 import com.modorone.juppeteer.util.StringUtil;
 
 import java.math.BigInteger;
