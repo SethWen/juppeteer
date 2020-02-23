@@ -4,16 +4,16 @@ import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.modorone.juppeteer.Browser;
 import com.modorone.juppeteer.CommandOptions;
+import com.modorone.juppeteer.Juppeteer;
+import com.modorone.juppeteer.MediaType;
 import com.modorone.juppeteer.cdp.*;
 import com.modorone.juppeteer.component.input.Keyboard;
 import com.modorone.juppeteer.component.input.Mouse;
 import com.modorone.juppeteer.component.input.Touchscreen;
 import com.modorone.juppeteer.component.network.Response;
+import com.modorone.juppeteer.exception.JuppeteerException;
 import com.modorone.juppeteer.exception.RequestException;
-import com.modorone.juppeteer.pojo.Cookie;
-import com.modorone.juppeteer.pojo.Device;
-import com.modorone.juppeteer.pojo.HtmlTag;
-import com.modorone.juppeteer.pojo.Viewport;
+import com.modorone.juppeteer.pojo.*;
 import com.modorone.juppeteer.util.StringUtil;
 import com.modorone.juppeteer.util.SystemUtil;
 import org.slf4j.Logger;
@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
+
 
 /**
  * author: Shawn
@@ -50,6 +51,8 @@ public class Page {
     private Accessibility mAccessibility;
     private EmulationManager mEmulationManager;
 
+    private boolean mIsClosed;
+
     public static Page create(CDPSession session, Target target) throws TimeoutException {
         Page page = new Page(session, target);
         page.init();
@@ -71,15 +74,6 @@ public class Page {
     }
 
     private void init() throws TimeoutException {
-//        await Promise.all([
-//                this._frameManager.initialize(),
-//                this._client.send('Target.setAutoAttach', {autoAttach: true, waitForDebuggerOnStart: false, flatten: true}),
-//        this._client.send('Performance.enable', {}),
-//                this._client.send('Log.enable', {}),
-//                this._client.send('Page.setInterceptFileChooserDialog', {enabled: true}).catch(e => {
-//                this._fileChooserInterceptionIsDisabled = true;
-//      }),
-//    ]);
         mFrameManager.init();
         mSession.doCall(TargetDomain.setAutoAttachCommand, new JSONObject() {{
             put("autoAttach", true);
@@ -229,14 +223,82 @@ public class Page {
         }});
     }
 
+    public void setCacheEnabled(boolean enabled) throws TimeoutException {
+        mFrameManager.getNetworkManager().setCacheEnabled(enabled);
+    }
+
+    public void setBypassCSP(boolean enabled) throws TimeoutException {
+        mSession.doCall(PageDomain.setBypassCSPCommand, new JSONObject() {{
+            put("enabled", enabled);
+        }});
+    }
+
+    public void emulateMediaType(MediaType mediaType) throws TimeoutException {
+        mSession.doCall(EmulationDomain.setEmulatedMediaCommand, new JSONObject() {{
+            put("media", mediaType.getType());
+        }});
+    }
+
+    public void emulateMediaFeatures(List<MediaFeature> features) throws TimeoutException {
+        if (Objects.isNull(features)) {
+            mSession.doCall(EmulationDomain.setEmulatedMediaCommand, new JSONObject() {{
+                put("features", null);
+            }});
+            return;
+        }
+
+        mSession.doCall(EmulationDomain.setEmulatedMediaCommand, new JSONObject() {{
+            put("features", features);
+        }});
+    }
+
+    /**
+     * @param timezoneId
+     * @throws TimeoutException
+     * @throws IllegalArgumentException
+     * @link https://docs.oracle.com/middleware/1221/wcs/tag-ref/MISC/TimeZones.html
+     * @see java.util.TimeZone
+     */
+    public void emulateTimezone(String timezoneId) throws TimeoutException, IllegalArgumentException {
+        JSONObject result = mSession.doCall(EmulationDomain.setTimezoneOverrideCommand, new JSONObject() {{
+            put("timezoneId", Objects.nonNull(timezoneId) ? timezoneId : "");
+        }});
+
+        if (Objects.nonNull(result.getJSONObject("error")) && Objects.nonNull(result.getJSONObject("error").getString("message"))
+                && result.getJSONObject("error").getString("message").contains("Invalid timezone")) {
+            throw new IllegalArgumentException("Invalid timezone ID: " + timezoneId);
+        }
+    }
+
     public Response navigate(String url, CommandOptions options) throws RequestException {
         return mFrameManager.getMainFrame().navigate(url, options);
     }
 
-    /**
-     * @param {!{timeout?: number, waitUntil?: string|!Array<string>}=} options
-     * @return {!Promise<?Puppeteer.Response>}
-     */
+    public Response goBack(CommandOptions options) throws TimeoutException, ExecutionException, InterruptedException {
+        return go(-1, options);
+    }
+
+    public Response goForward(CommandOptions options) throws TimeoutException, ExecutionException, InterruptedException {
+        return go(+1, options);
+    }
+
+    private Response go(int delta, CommandOptions options) throws TimeoutException, ExecutionException, InterruptedException {
+        JSONObject history = mSession.doCall(PageDomain.getNavigationHistoryCommand).getJSONObject("result");
+        JSONArray entries = history.getJSONArray("entries");
+        JSONObject entry = entries.getJSONObject(history.getIntValue("currentIndex") + delta);
+        if (Objects.isNull(entry)) return null;
+
+        mSession.doCall(PageDomain.navigateToHistoryEntryCommand, new JSONObject() {{
+            put("entryId", entry.getIntValue("id"));
+        }});
+        return waitForNavigation(options);
+    }
+
+    public void bringToFront() throws TimeoutException {
+        mSession.doCall(PageDomain.bringToFrontCommand);
+    }
+
+    // timeout|waitUntil
     public Response reload(CommandOptions options) throws TimeoutException, ExecutionException, InterruptedException {
         mSession.doCall(PageDomain.reloadCommand);
         return waitForNavigation(options);
@@ -282,8 +344,8 @@ public class Page {
         return getMainFrame().waitForNavigation(options);
     }
 
-    public void waitForSelector(String selector, JSONObject options) {
-
+    public void waitForSelector(String selector, CommandOptions options) {
+//        return getMainFrame().waitForSelector(selector, options);
     }
 
     public void waitForXpath(String xpath, JSONObject options) {
@@ -414,5 +476,26 @@ public class Page {
 
     public JSHandle addStyleTag(HtmlTag styleTag) throws TimeoutException, InterruptedException {
         return getMainFrame().addStyleTag(styleTag);
+    }
+
+    public boolean isClosed() {
+        return mIsClosed;
+    }
+
+    public void close(boolean runBeforeUnload) throws TimeoutException, JuppeteerException {
+        if (Objects.isNull(mSession) || Objects.isNull(mSession.getConnection()))
+            throw new JuppeteerException("Protocol error: Connection closed. Most likely the page has been closed.");
+
+        if (runBeforeUnload) {
+            // FIXME: 2/23/20 {"error":{"code":-32601,"message":"'Page.close'' wasn't found"},"id":16,"sessionId":"C77E2BE1A9E97EDF853465A23CA12462"}
+            mSession.doCall(PageDomain.closeCommand, new JSONObject());
+        } else {
+            mSession.doCall(TargetDomain.closeTargetCommand, new JSONObject() {{
+                put("targetId", mTarget.getTargetInfo().getTargetId());
+            }});
+            mTarget.getCloseWaiter().uninterruptibleGet();
+        }
+        mIsClosed = true;
+        //  {"sessionId":"9B2079F6293DDD1CF9CC409C96F37EDB","method":"Page.close","params":{},"id":16}
     }
 }

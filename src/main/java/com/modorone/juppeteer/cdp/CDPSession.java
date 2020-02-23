@@ -29,6 +29,10 @@ public class CDPSession {
         mTargetType = targetType;
     }
 
+    public Connection getConnection() {
+        return mConnection;
+    }
+
     public void setFrameListener(Frame.FrameListener listener) {
         mConnection.setFrameListener(listener);
     }

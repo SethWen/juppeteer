@@ -27,4 +27,9 @@ public interface PageDomain {
     String createIsolatedWorldCommand = "Page.createIsolatedWorld";
     String getLayoutMetricsCommand = "Page.getLayoutMetrics";
     String reloadCommand = "Page.reload";
+    String getNavigationHistoryCommand = "Page.getNavigationHistory";
+    String navigateToHistoryEntryCommand = "Page.navigateToHistoryEntry";
+    String bringToFrontCommand = "Page.bringToFront";
+    String setBypassCSPCommand = "Page.setBypassCSP";
+    String closeCommand = "Page.close'";
 }

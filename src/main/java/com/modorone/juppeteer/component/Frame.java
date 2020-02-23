@@ -8,6 +8,7 @@ import com.modorone.juppeteer.util.BlockingCell;
 import com.modorone.juppeteer.component.network.Response;
 import com.modorone.juppeteer.exception.RequestException;
 import com.modorone.juppeteer.util.StringUtil;
+import com.sun.org.apache.xml.internal.dtm.DTMManager;
 
 import java.util.List;
 import java.util.Objects;
@@ -148,8 +149,15 @@ public class Frame {
     public void waitForFunction(/*pageFunction, options = {}, ...args*/) {
     }
 
-    public void waitForSelector(/*selector, options*/) {
-//        return this._mainWorld.waitForSelector(selector, options);
+    public void waitForSelector(String selector, CommandOptions options) {
+//         const handle = await this._secondaryWorld.waitForSelector(selector, options);
+//        if (!handle)
+//            return null;
+//    const mainExecutionContext = await this._mainWorld.executionContext();
+//    const result = await mainExecutionContext._adoptElementHandle(handle);
+//        await handle.dispose();
+//        return result;
+//        return mMainWorld.waitForSelector(selector, options);
     }
 
     public void waitForXPath(/*xpath, options*/) {

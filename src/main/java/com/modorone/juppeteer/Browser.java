@@ -5,11 +5,13 @@ import com.alibaba.fastjson.JSONObject;
 import com.alibaba.fastjson.annotation.JSONField;
 import com.modorone.juppeteer.cdp.CDPSession;
 import com.modorone.juppeteer.cdp.Connection;
+import com.modorone.juppeteer.component.ExecutionContext;
 import com.modorone.juppeteer.component.Page;
 import com.modorone.juppeteer.component.Target;
 import com.modorone.juppeteer.exception.IllegalTargetException;
 import com.modorone.juppeteer.cdp.BrowserDomain;
 import com.modorone.juppeteer.cdp.TargetDomain;
+import com.modorone.juppeteer.exception.JuppeteerException;
 import com.modorone.juppeteer.util.StringUtil;
 import com.modorone.juppeteer.util.SystemUtil;
 import org.slf4j.Logger;
@@ -42,6 +44,15 @@ public class Browser {
         public void onCreate(Target.TargetInfo targetInfo, Supplier<CDPSession> sessionSupplier) {
             Target target = Target.create(Browser.this, targetInfo, sessionSupplier);
             mTargets.put(targetInfo.getTargetId(), target);
+
+            if (target.getInitWaiter().uninterruptibleGet()) {
+                // TODO: 2/23/20
+            }
+//
+//            if (await target._initializedPromise) {
+//                this.emit(Events.Browser.TargetCreated, target);
+//                context.emit(Events.BrowserContext.TargetCreated, target);
+//            }
         }
 
         @Override
@@ -56,7 +67,12 @@ public class Browser {
 
         @Override
         public void onDestroy(String targetId) {
-            mTargets.remove(targetId);
+            Target target = mTargets.remove(targetId);
+
+            target.getCloseWaiter().setIfUnset(true);
+            if (target.getInitWaiter().uninterruptibleGet()) {
+                // TODO: 2/23/20
+            }
         }
     };
 
@@ -92,6 +108,10 @@ public class Browser {
             put("browserContextId", contextId);
         }});
         String targetId = json.getJSONObject("result").getString("targetId");
+        Target target = mTargets.get(targetId);
+        if (!target.getInitWaiter().uninterruptibleGet()) {
+            throw new JuppeteerException("Failed to create target for page");
+        }
         return mTargets.get(targetId).getPage();
     }
 

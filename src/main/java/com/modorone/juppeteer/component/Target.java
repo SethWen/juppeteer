@@ -2,7 +2,9 @@ package com.modorone.juppeteer.component;
 
 import com.modorone.juppeteer.Browser;
 import com.modorone.juppeteer.cdp.CDPSession;
+import com.modorone.juppeteer.util.BlockingCell;
 import com.modorone.juppeteer.util.StringUtil;
+import jdk.nashorn.internal.runtime.regexp.joni.constants.TargetInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -23,8 +25,14 @@ public class Target {
     private TargetInfo mTargetInfo;
     private Supplier<CDPSession> mSessionSupplier;
 
+    private BlockingCell<Boolean> mInitWaiter = new BlockingCell<>();
+    private BlockingCell<Boolean> mCloseWaiter = new BlockingCell<>();
+    private boolean mIsInit;
+
     public static Target create(Browser browser, TargetInfo targetInfo, Supplier<CDPSession> sessionSupplier) {
-        return new Target(browser, targetInfo, sessionSupplier);
+        Target target = new Target(browser, targetInfo, sessionSupplier);
+        target.init();
+        return target;
     }
 
     private Target(Browser browser, TargetInfo targetInfo, Supplier<CDPSession> sessionSupplier) {
@@ -35,6 +43,9 @@ public class Target {
 
     private void init() {
         // TODO: 2/16/20 涉及到 openerId，暂时没发现该字段，暂时不实现
+        mIsInit = !StringUtil.equals("page", mTargetInfo.getType()) || !StringUtil.equals("", mTargetInfo.getUrl());
+        System.out.println("target is init: " + mIsInit);
+        if (mIsInit) mInitWaiter.setIfUnset(true);
     }
 
     public Browser getBrowser() {
@@ -60,6 +71,14 @@ public class Target {
         return mTargetInfo;
     }
 
+    public BlockingCell<Boolean> getInitWaiter() {
+        return mInitWaiter;
+    }
+
+    public BlockingCell<Boolean> getCloseWaiter() {
+        return mCloseWaiter;
+    }
+
     public interface TargetListener {
         void onCreate(TargetInfo targetInfo, Supplier<CDPSession> sessionSupplier);
 
@@ -72,6 +91,7 @@ public class Target {
         private String targetId;
         private String type;
         private String title;
+        private String url;
         private boolean attached;
         private String browserContextId;
 
@@ -97,6 +117,14 @@ public class Target {
 
         public void setTitle(String title) {
             this.title = title;
+        }
+
+        public String getUrl() {
+            return url;
+        }
+
+        public void setUrl(String url) {
+            this.url = url;
         }
 
         public boolean isAttached() {

@@ -25,5 +25,6 @@ public interface TargetDomain {
     String setAutoAttachCommand = "Target.setAutoAttach";
     String createBrowserContextCommand = "Target.createBrowserContext";
     String disposeBrowserContextCommand = "Target.disposeBrowserContext";
+    String closeTargetCommand = "Target.closeTarget";
 
 }

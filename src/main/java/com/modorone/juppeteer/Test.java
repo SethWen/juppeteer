@@ -6,12 +6,14 @@ import com.modorone.juppeteer.component.Page;
 import com.modorone.juppeteer.component.network.Response;
 import com.modorone.juppeteer.pojo.Cookie;
 import com.modorone.juppeteer.pojo.HtmlTag;
+import com.modorone.juppeteer.pojo.MediaFeature;
 import com.modorone.juppeteer.pojo.Viewport;
 import com.modorone.juppeteer.util.SystemUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.*;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 
 /**
@@ -39,14 +41,36 @@ public class Test {
             System.out.println("spent: " + (System.currentTimeMillis() - start));
             if (Objects.isNull(page)) page = browser.newPage();
 
+//            page = browser.newPage();
+
             Response response = page.navigate("https://ip.cn",
                     CommandOptions.getDefault()
                             .setWaitUntil(WaitUntil.NETWORK_IDLE)
                             .setTimeout(5000));
 
 
-            Response reload = page.reload(CommandOptions.getDefault());
-            System.out.println("reload------" + reload.getText());
+            System.out.println(page.isClosed());
+
+            page.close(true);
+
+//            page.waitFor(6000);
+//            page.bringToFront();
+//            page.setBypassCSP(true);
+//            page.emulateMediaType(MediaType.SCREEN);
+//            page.emulateMediaFeatures(null);
+//            page.emulateMediaFeatures(Arrays.asList(new MediaFeature(){{
+//                setName("prefers-reduced-motion");
+//                setValue("reduce");
+//            }}));
+
+//            String[] availableIDs = TimeZone.getAvailableIDs();
+//            System.out.println(Arrays.toString(availableIDs));
+//            page.emulateTimezone(availableIDs[0]);
+
+
+
+//            Response reload = page.reload(CommandOptions.getDefault());
+//            System.out.println("reload------" + reload.getText());
 
 //            List<JSHandle.ElementHandle> els = page.$$("a");
 //            System.out.println(els.size());
@@ -83,6 +107,23 @@ public class Test {
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    private static void testGo(Page page) throws TimeoutException, ExecutionException, InterruptedException {
+        Response response = page.navigate("https://ip.cn",
+                CommandOptions.getDefault()
+                        .setWaitUntil(WaitUntil.NETWORK_IDLE)
+                        .setTimeout(5000));
+
+        response = page.navigate("https://www.baidu.com",
+                CommandOptions.getDefault()
+                        .setWaitUntil(WaitUntil.NETWORK_IDLE)
+                        .setTimeout(5000));
+
+        page.waitFor(3000);
+        page.goBack(CommandOptions.getDefault());
+        page.waitFor(3000);
+        page.goForward(CommandOptions.getDefault());
     }
 
     private static void testAddTag(Page page) throws TimeoutException, InterruptedException {

@@ -7,4 +7,6 @@ public interface EmulationDomain {
     String setScriptExecutionDisabledCommand = "Emulation.setScriptExecutionDisabled";
     String setDeviceMetricsOverrideCommand = "Emulation.setDeviceMetricsOverride";
     String setTouchEmulationEnabledCommand = "Emulation.setTouchEmulationEnabled";
+    String setEmulatedMediaCommand = "Emulation.setEmulatedMedia";
+    String setTimezoneOverrideCommand = "Emulation.setTimezoneOverride";
 }
