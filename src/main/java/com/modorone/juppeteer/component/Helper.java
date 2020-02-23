@@ -1,15 +1,14 @@
 package com.modorone.juppeteer.component;
 
 import com.alibaba.fastjson.JSONObject;
+import com.modorone.juppeteer.DeviceDescriptor;
 import com.modorone.juppeteer.cdp.CDPSession;
 import com.modorone.juppeteer.exception.JuppeteerException;
 import com.modorone.juppeteer.cdp.RuntimeDomain;
 import com.modorone.juppeteer.util.StringUtil;
 
 import java.math.BigInteger;
-import java.util.HashSet;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.TimeoutException;
 
 /**
@@ -142,5 +141,21 @@ public class Helper {
             }
         }
         return mPaperFormats;
+    }
+
+    private static Map<String, Float> mUnit2PixelMap;
+
+    public static Float getPixelByUnit(String unit) {
+        if (Objects.isNull(mUnit2PixelMap)) {
+            synchronized (DeviceDescriptor.class) {
+                mUnit2PixelMap = new HashMap<String, Float>() {{
+                    put("px", 1f);
+                    put("in", 96f);
+                    put("cm", 37.8f);
+                    put("mm", 3.78f);
+                }};
+            }
+        }
+        return mUnit2PixelMap.get(unit);
     }
 }
