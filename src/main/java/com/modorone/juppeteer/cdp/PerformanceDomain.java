@@ -9,4 +9,5 @@ package com.modorone.juppeteer.cdp;
 public interface PerformanceDomain {
 
     String enableCommand = "Performance.enable";
+    String getMetricsCommand = "Performance.getMetrics";
 }

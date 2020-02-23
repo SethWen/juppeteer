@@ -3,14 +3,17 @@ package com.modorone.juppeteer.component;
 import com.alibaba.fastjson.JSONObject;
 import com.alibaba.fastjson.annotation.JSONField;
 import com.modorone.juppeteer.CommandOptions;
+import com.modorone.juppeteer.pojo.HtmlTag;
 import com.modorone.juppeteer.util.BlockingCell;
 import com.modorone.juppeteer.component.network.Response;
 import com.modorone.juppeteer.exception.RequestException;
 import com.modorone.juppeteer.util.StringUtil;
 
+import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 
 /**
@@ -68,15 +71,12 @@ public class Frame {
         if (Objects.nonNull(frame)) mChildFrames.remove(frame);
     }
 
-    public void waitForNavigation(/*option*/) {
-
+    public Response waitForNavigation(CommandOptions options) throws InterruptedException, ExecutionException, TimeoutException {
+        return mFrameManager.waitForFrameNavigation(this, options);
     }
 
     public Response navigate(String url, CommandOptions options) throws RequestException {
         return mFrameManager.navigateFrame(this, url, options);
-
-//        {"result":{"frameId":"5BF35E2DDCE3A76E506283D505690927","loaderId":"B88468FB682EFF0E86F170FA2EC53E05"},"id":13,"sessionId":"552B9FEF3C4ECC110FEC21EDC6149EE2"}
-//        {"result":{"errorText":"net::ERR_ABORTED","frameId":"75521C56E71CBAB0B6106F596ADD4E99","loaderId":"65B60665621A7266D2125A476C94041F"},"id":13,"sessionId":"885EA32C6AD1C33EF8DC7BF40889ABCA"}
     }
 
     public void click(/*selector, options = {}*/) {
@@ -156,12 +156,11 @@ public class Frame {
     }
 
     public BlockingCell<ExecutionContext> getContentWaiter() {
-//        return this._mainWorld.content();
         return mMainWorld.getContextWaiter();
     }
 
-    public void setContent(String html) {
-//        return this._mainWorld.setContent(html);
+    public void setContent(String html, CommandOptions options) throws TimeoutException, InterruptedException {
+        mSecondaryWorld.setContent(html, options);
     }
 
     public Object evaluateCodeBlock4Value(String pageFunction) throws TimeoutException, InterruptedException {
@@ -180,36 +179,32 @@ public class Frame {
         return mMainWorld.evaluateFunction4Handle(pageFunction, args);
     }
 
-    public void $(/*selector*/) {
-//        return this._mainWorld.$(selector);
+    public ElementHandle $(String selector) throws TimeoutException, InterruptedException {
+        return mMainWorld.$(selector);
     }
 
-    public void $$(/*selector*/) {
-//        return this._mainWorld.$$(selector);
+    public List<ElementHandle> $$(String selector) throws TimeoutException, InterruptedException {
+        return mMainWorld.$$(selector);
     }
 
-    public void $eval(/*selector, pageFunction, ...args*/) {
-//        return this._mainWorld.$eval(selector, pageFunction, ...args);
+    public Object $eval(String selector, String pageFunction, Object... args) throws TimeoutException, InterruptedException {
+        return mMainWorld.$eval(selector, pageFunction, args);
     }
 
-    public void $$eval(/*selector, pageFunction, ...args*/) {
-//        return this._mainWorld.$$eval(selector, pageFunction, ...args);
+    public Object $$eval(String selector, String pageFunction, Object... args) throws TimeoutException, InterruptedException {
+        return mMainWorld.$$eval(selector, pageFunction, args);
     }
 
-    public void $x(/*expression*/) {
-//        return this._mainWorld.$x(expression);
+    public List<ElementHandle> $x(String expression) throws TimeoutException, InterruptedException {
+        return mMainWorld.$x(expression);
     }
 
-    public void evaluateHandle(/*pageFunction, ...args*/) {
-//        return this._mainWorld.evaluateHandle(pageFunction, ...args);
+    public JSHandle addScriptTag(HtmlTag scriptTag) throws TimeoutException, InterruptedException {
+        return mMainWorld.addScriptTag(scriptTag);
     }
 
-    public void addScriptTag(/*options*/) {
-//        return this._mainWorld.addScriptTag(options);
-    }
-
-    public void addStyleTag(/*options*/) {
-//        return this._mainWorld.addStyleTag(options);
+    public JSHandle addStyleTag(HtmlTag styleTag) throws TimeoutException, InterruptedException {
+        return mMainWorld.addStyleTag(styleTag);
     }
 
     public String getTitle() throws TimeoutException, InterruptedException {
@@ -350,15 +345,6 @@ public class Frame {
     }
 
     public interface FrameListener {
-//         this._client.on('Page.frameAttached', event => this._onFrameAttached(event.frameId, event.parentFrameId));
-//    this._client.on('Page.frameNavigated', event => this._onFrameNavigated(event.frame));
-//    this._client.on('Page.navigatedWithinDocument', event => this._onFrameNavigatedWithinDocument(event.frameId, event.url));
-//    this._client.on('Page.frameDetached', event => this._onFrameDetached(event.frameId));
-//    this._client.on('Page.frameStoppedLoading', event => this._onFrameStoppedLoading(event.frameId));
-//    this._client.on('Runtime.executionContextCreated', event => this._onExecutionContextCreated(event.context));
-//    this._client.on('Runtime.executionContextDestroyed', event => this._onExecutionContextDestroyed(event.executionContextId));
-//    this._client.on('Runtime.executionContextsCleared', event => this._onExecutionContextsCleared());
-//    this._client.on('Page.lifecycleEvent', event => this._onLifecycleEvent(event));
 
         void onFrameAttached(FrameInfo frameInfo);
 

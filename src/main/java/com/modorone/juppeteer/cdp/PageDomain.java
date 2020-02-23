@@ -1,6 +1,5 @@
 package com.modorone.juppeteer.cdp;
 
-import com.modorone.juppeteer.component.Page;
 
 /**
  * author: Shawn
@@ -27,4 +26,5 @@ public interface PageDomain {
     String addScriptToEvaluateOnNewDocumentCommand = "Page.addScriptToEvaluateOnNewDocument";
     String createIsolatedWorldCommand = "Page.createIsolatedWorld";
     String getLayoutMetricsCommand = "Page.getLayoutMetrics";
+    String reloadCommand = "Page.reload";
 }

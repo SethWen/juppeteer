@@ -54,14 +54,14 @@ public class ExecutionContext {
         return evaluateCodeBlock(true, jsCodeBlock);
     }
 
-    public Object evaluateCodeBlock4Handle(String jsCodeBlock) throws TimeoutException {
-        return evaluateCodeBlock(false, jsCodeBlock);
+    public JSHandle evaluateCodeBlock4Handle(String jsCodeBlock) throws TimeoutException {
+        return (JSHandle) evaluateCodeBlock(false, jsCodeBlock);
     }
 
     private Object evaluateCodeBlock(boolean returnByValue, String jsCodeBlock) throws TimeoutException {
         String suffix = "\n" + Constants.EVALUATION_SCRIPT_URL + "\n";
         String expression = (jsCodeBlock + suffix);
-        System.out.println("evaluateCodeBlock: " + expression);
+        System.out.println("evaluateCodeBlock: \n\t" + expression);
         JSONObject json = mSession.doCall(RuntimeDomain.evaluateCommand, new JSONObject() {{
             put("expression", expression);
             put("contextId", mContextId);
@@ -80,14 +80,14 @@ public class ExecutionContext {
         return evaluateFunction(pageFunction, true, args);
     }
 
-    public Object evaluateFunction4Handle(String pageFunction, Object... args) throws TimeoutException {
-        return evaluateFunction(pageFunction, false, args);
+    public JSHandle evaluateFunction4Handle(String pageFunction, Object... args) throws TimeoutException {
+        return (JSHandle) evaluateFunction(pageFunction, false, args);
     }
 
     private Object evaluateFunction(String pageFunction, boolean returnByValue, Object... args) throws TimeoutException {
         String suffix = "\n" + Constants.EVALUATION_SCRIPT_URL + "\n";
         pageFunction += suffix;
-        System.out.println("evaluateFunction: \n" + pageFunction);
+        System.out.println("evaluateFunction: \n\t" + pageFunction);
 
         JSONArray arguments = new JSONArray();
         for (Object arg : args) {

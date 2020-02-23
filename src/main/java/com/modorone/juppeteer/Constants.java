@@ -12,7 +12,7 @@ import java.util.Map;
 public class Constants {
 
     public static final long INFINITY = -1;
-    public static final int DEFAULT_RPC_TIMEOUT = 50000;
+    public static final int DEFAULT_RPC_TIMEOUT = 30000;
 
     public static final String EVALUATION_SCRIPT_URL = "//# sourceURL=__juppeteer_evaluation_script__";
 

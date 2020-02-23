@@ -1,8 +1,11 @@
 package com.modorone.juppeteer;
 
 import com.alibaba.fastjson.JSONObject;
+import com.alibaba.fastjson.serializer.SerializerFeature;
 import com.modorone.juppeteer.component.Page;
 import com.modorone.juppeteer.component.network.Response;
+import com.modorone.juppeteer.pojo.Cookie;
+import com.modorone.juppeteer.pojo.HtmlTag;
 import com.modorone.juppeteer.pojo.Viewport;
 import com.modorone.juppeteer.util.SystemUtil;
 import org.slf4j.Logger;
@@ -30,38 +33,89 @@ public class Test {
     public static void main(String[] args) {
         logger.info("main: ={}", "start...");
         try {
+            long start = System.currentTimeMillis();
             Browser browser = Juppeteer.getInstance().launch(new Options());
             Page page = browser.getPages().get(0);
+            System.out.println("spent: " + (System.currentTimeMillis() - start));
             if (Objects.isNull(page)) page = browser.newPage();
 
-            try {
-                // FIXME: 2/21/20 加载完成 无法获取结果 shit！！！
-//            page = browser.newPage();
-            Response response = page.navigate("http://pv.sohu.com/cityjson",
+            Response response = page.navigate("https://ip.cn",
                     CommandOptions.getDefault()
                             .setWaitUntil(WaitUntil.NETWORK_IDLE)
                             .setTimeout(5000));
-            System.out.println("11111111111111---------" + response.getText());
 
-            } catch (Exception e ) {
-                e.printStackTrace();
-            }
-            System.out.println("finished......111111111111........");
 
-            try {
-                Response response = page.navigate("https://ip.cn",
-                        CommandOptions.getDefault()
-                                .setWaitUntil(WaitUntil.NETWORK_IDLE)
-                                .setTimeout(5000));
-                System.out.println("222222222222222---------" + response.getText());
-            } catch (Exception e){
-                e.printStackTrace();
-            }
-            System.out.println("finished2222222222222222................");
+            Response reload = page.reload(CommandOptions.getDefault());
+            System.out.println("reload------" + reload.getText());
+
+//            List<JSHandle.ElementHandle> els = page.$$("a");
+//            System.out.println(els.size());
+
+//            Object o = page.$eval("#su", "(element) => console.log(element.value)");
+//            System.out.println(o);
+
+//            Object a = page.$$eval("#su", "(element) => console.log('tttttttt')");
+//            List<ElementHandle> handles = page.$x("//a");
+//            System.out.println(handles.size());
+
+//            System.out.println(page.getMetrics().toString(SerializerFeature.PrettyFormat));
+//            page.setContent("hahah", CommandOptions.getDefault());
+
+//            page.type("input", "github", new JSONObject());
+//            JSHandle.ElementHandle submit = page.$("#su");
+//            submit.click(new JSONObject());
+
+
+//            System.out.println();
+
+
+//            try {
+//                Response response = page.navigate("https://ip.cn",
+//                        CommandOptions.getDefault()
+//                                .setWaitUntil(WaitUntil.NETWORK_IDLE)
+//                                .setTimeout(5000));
+//                System.out.println("222222222222222---------" + response.getText());
+//            } catch (Exception e){
+//                e.printStackTrace();
+//            }
+//            System.out.println("finished2222222222222222................");
 
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    private static void testAddTag(Page page) throws TimeoutException, InterruptedException {
+        page.addScriptTag(new HtmlTag(){{
+//                setUrl("https://csdnimg.cn/public/common/libs/jquery/jquery-1.9.1.min.js");
+            setContent("document.shawn='wcy'");
+        }});
+
+        page.addStyleTag(new HtmlTag(){{
+            setUrl("https://cdn.jsdelivr.net/npm/bootstrap@3.3.7/dist/css/bootstrap.min.css");
+        }});
+    }
+
+    private static void testCookie(Page page) throws TimeoutException {
+        System.out.println(page.getUrl());
+        List<Cookie> cookies = page.getCookies();
+        System.out.println(cookies.size());
+
+
+        page.setCookie(new Cookie(){{
+            setName("DOC");
+            setValue("testtest");
+            setDomain("www.baidu.com");
+        }});
+
+        cookies = page.getCookies();
+        System.out.println("222--------------" + cookies.size());
+
+        page.deleteCookie(new Cookie() {{
+            setName("DOC");
+            setDomain("www.baidu.com");
+        }});
+        System.out.println("333--------------" + page.getCookies().size());
     }
 
     private static void testPage(Page page) throws Exception {

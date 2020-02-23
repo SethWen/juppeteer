@@ -1,5 +1,6 @@
 package com.modorone.juppeteer.component;
 
+import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.modorone.juppeteer.Browser;
 import com.modorone.juppeteer.CommandOptions;
@@ -9,14 +10,20 @@ import com.modorone.juppeteer.component.input.Mouse;
 import com.modorone.juppeteer.component.input.Touchscreen;
 import com.modorone.juppeteer.component.network.Response;
 import com.modorone.juppeteer.exception.RequestException;
+import com.modorone.juppeteer.pojo.Cookie;
 import com.modorone.juppeteer.pojo.Device;
+import com.modorone.juppeteer.pojo.HtmlTag;
 import com.modorone.juppeteer.pojo.Viewport;
+import com.modorone.juppeteer.util.StringUtil;
 import com.modorone.juppeteer.util.SystemUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 
 /**
@@ -29,7 +36,6 @@ public class Page {
 
     private static final Logger logger = LoggerFactory.getLogger(Page.class);
 
-    private String mUrl;
     private CDPSession mSession;
     private Target mTarget;
     private FrameManager mFrameManager;
@@ -103,6 +109,14 @@ public class Page {
         return getMainFrame().getContent();
     }
 
+    /**
+     * @param {string}     html
+     * @param {!{timeout?: number, waitUntil?: string|!Array<string>}=} options
+     */
+    public void setContent(String html, CommandOptions options) throws TimeoutException, InterruptedException {
+        getMainFrame().setContent(html, options);
+    }
+
     public Browser getBrowser() {
         return mTarget.getBrowser();
     }
@@ -143,6 +157,24 @@ public class Page {
         return mFrameManager.getFrames();
     }
 
+    public JSONObject getMetrics() throws TimeoutException {
+        JSONObject result = mSession.doCall(PerformanceDomain.getMetricsCommand).getJSONObject("result");
+        return buildMetricsObject(result.getJSONArray("metrics"));
+    }
+
+    private JSONObject buildMetricsObject(JSONArray metrics) {
+        if (Objects.isNull(metrics)) return new JSONObject();
+
+        JSONObject result = new JSONObject();
+        for (Object metric : metrics) {
+            JSONObject m = (JSONObject) metric;
+            if (Helper.getSupportedMetrics().contains(m.getString("name"))) {
+                result.put(m.getString("name"), m.getString("value"));
+            }
+        }
+        return result;
+    }
+
     public void setRequestInterception(boolean enabled) throws TimeoutException {
         mFrameManager.getNetworkManager().setRequestInterception(enabled);
     }
@@ -171,14 +203,14 @@ public class Page {
         mFrameManager.getNetworkManager().setUserAgent(userAgent);
     }
 
-    public void setViewPort(Viewport viewPort) throws TimeoutException {
+    public void setViewPort(Viewport viewPort) throws TimeoutException, ExecutionException, InterruptedException {
         boolean reloadNeeded = mEmulationManager.emulateViewport(viewPort);
         mViewport = viewPort;
-        if (reloadNeeded) reload();
+        if (reloadNeeded) reload(null);
 
     }
 
-    public void emulate(Device device) throws TimeoutException {
+    public void emulate(Device device) throws TimeoutException, ExecutionException, InterruptedException {
         setUserAgent(device.getUserAgent());
         setViewPort(device.getViewport());
     }
@@ -201,8 +233,13 @@ public class Page {
         return mFrameManager.getMainFrame().navigate(url, options);
     }
 
-    public void reload() {
-        // TODO: 2/20/20
+    /**
+     * @param {!{timeout?: number, waitUntil?: string|!Array<string>}=} options
+     * @return {!Promise<?Puppeteer.Response>}
+     */
+    public Response reload(CommandOptions options) throws TimeoutException, ExecutionException, InterruptedException {
+        mSession.doCall(PageDomain.reloadCommand);
+        return waitForNavigation(options);
     }
 
     public void setGeolocation(double longitude, double latitude, double accuracy) throws TimeoutException {
@@ -222,27 +259,27 @@ public class Page {
     }
 
     public Object evaluateCodeBlock4Value(String pageFunction) throws TimeoutException, InterruptedException {
-        return mFrameManager.getMainFrame().evaluateCodeBlock4Value(pageFunction);
+        return getMainFrame().evaluateCodeBlock4Value(pageFunction);
     }
 
     public Object evaluateCodeBlock4Handle(String pageFunction) throws TimeoutException, InterruptedException {
-        return mFrameManager.getMainFrame().evaluateCodeBlock4Handle(pageFunction);
+        return getMainFrame().evaluateCodeBlock4Handle(pageFunction);
     }
 
     public Object evaluateFunction4Value(String pageFunction, Object... args) throws TimeoutException, InterruptedException {
-        return mFrameManager.getMainFrame().evaluateFunction4Value(pageFunction, args);
+        return getMainFrame().evaluateFunction4Value(pageFunction, args);
     }
 
     public Object evaluateFunction4Handle(String pageFunction, Object... args) throws TimeoutException, InterruptedException {
-        return mFrameManager.getMainFrame().evaluateFunction4Handle(pageFunction, args);
+        return getMainFrame().evaluateFunction4Handle(pageFunction, args);
     }
 
     public void waitFor(long timeout) {
         SystemUtil.sleep(timeout);
     }
 
-    public void waitForNavigation() {
-
+    public Response waitForNavigation(CommandOptions options) throws InterruptedException, ExecutionException, TimeoutException {
+        return getMainFrame().waitForNavigation(options);
     }
 
     public void waitForSelector(String selector, JSONObject options) {
@@ -287,5 +324,95 @@ public class Page {
 
     public void press(String selector, String key, JSONObject options) throws TimeoutException, InterruptedException {
         getMainFrame().press(selector, key, options);
+    }
+
+    public ElementHandle $(String selector) throws TimeoutException, InterruptedException {
+        return getMainFrame().$(selector);
+    }
+
+    public List<ElementHandle> $$(String selector) throws TimeoutException, InterruptedException {
+        return getMainFrame().$$(selector);
+    }
+
+    public Object $eval(String selector, String pageFunction, Object... args) throws TimeoutException, InterruptedException {
+        return getMainFrame().$eval(selector, pageFunction, args);
+    }
+
+    public Object $$eval(String selector, String pageFunction, Object... args) throws TimeoutException, InterruptedException {
+        return getMainFrame().$$eval(selector, pageFunction, args);
+    }
+
+    public List<ElementHandle> $x(String expression) throws TimeoutException, InterruptedException {
+        return getMainFrame().$x(expression);
+    }
+
+    public List<Cookie> getCookies(String... urls) throws TimeoutException {
+        JSONArray urlArray = new JSONArray();
+        if (urls.length == 0) {
+            urlArray.add(getUrl());
+        } else {
+            Collections.addAll(urlArray, urls);
+        }
+        JSONArray cookies = mSession.doCall(NetWorkDomain.getCookiesCommand, new JSONObject() {{
+            put("urls", urlArray);
+        }}).getJSONObject("result").getJSONArray("cookies");
+        return cookies.toJavaList(Cookie.class);
+    }
+
+    /**
+     * @param cookies name/{domain|url}
+     * @throws TimeoutException
+     * @throws IllegalArgumentException
+     */
+    public void deleteCookie(Cookie... cookies) throws TimeoutException, IllegalArgumentException {
+        String pageUrl = getUrl();
+        for (Cookie cookie : cookies) {
+            if (Objects.isNull(cookie)) throw new IllegalArgumentException("cookie can not be null");
+            if (StringUtil.isEmpty(cookie.getName()))
+                throw new IllegalArgumentException("cookie name can not be empty");
+            if (StringUtil.isEmpty(cookie.getUrl()) && StringUtil.isEmpty(cookie.getDomain()))
+                throw new IllegalArgumentException("at least one of the url and domain needs to be specified");
+
+            if (StringUtil.nonEmpty(cookie.getUrl()) && StringUtil.startsWith(pageUrl, "http")) {
+                cookie.setUrl(pageUrl);
+            }
+
+            mSession.doCall(NetWorkDomain.deleteCookiesCommand, new JSONObject() {{
+                put("name", cookie.getName());
+                put("domain", cookie.getDomain());
+                put("url", cookie.getUrl());
+            }});
+        }
+    }
+
+    public void setCookie(Cookie... cookies) throws TimeoutException {
+        String pageUrl = getUrl();
+        boolean startsWithHTTP = StringUtil.startsWith(pageUrl, "http");
+        for (Cookie cookie : cookies) {
+            if (StringUtil.nonEmpty(cookie.getUrl()) && startsWithHTTP) {
+                cookie.setUrl(pageUrl);
+            }
+            if (StringUtil.equals("about:blank", cookie.getUrl())) {
+                throw new IllegalArgumentException("Blank page can not have cookie " + cookie.getName());
+            }
+
+            if (StringUtil.startsWith(cookie.getUrl(), "data:")) {
+                throw new IllegalArgumentException("Data URL page can not have cookie " + cookie.getName());
+            }
+        }
+
+        JSONArray cookieArray = new JSONArray();
+        Collections.addAll(cookieArray, cookies);
+        mSession.doCall(NetWorkDomain.setCookiesCommand, new JSONObject() {{
+            put("cookies", cookieArray);
+        }});
+    }
+
+    public JSHandle addScriptTag(HtmlTag scriptTag) throws TimeoutException, InterruptedException {
+        return getMainFrame().addScriptTag(scriptTag);
+    }
+
+    public JSHandle addStyleTag(HtmlTag styleTag) throws TimeoutException, InterruptedException {
+        return getMainFrame().addStyleTag(styleTag);
     }
 }

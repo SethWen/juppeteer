@@ -1,11 +1,16 @@
 package com.modorone.juppeteer.component;
 
 import com.alibaba.fastjson.JSONObject;
+import com.modorone.juppeteer.CommandOptions;
+import com.modorone.juppeteer.pojo.HtmlTag;
 import com.modorone.juppeteer.util.BlockingCell;
 import com.modorone.juppeteer.exception.ElementNotFoundException;
 import com.modorone.juppeteer.exception.JuppeteerException;
+import com.modorone.juppeteer.util.StringUtil;
 
+import java.security.InvalidParameterException;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.TimeoutException;
@@ -25,7 +30,7 @@ public class DomWorld {
     private boolean mDetached;
     private Set<WaitTask> mWaitTasks = new HashSet<>();
 
-    private JSHandle.ElementHandle mDocument;
+    private ElementHandle mDocument;
     private BlockingCell<ExecutionContext> mContextWaiter;
     private boolean mHasContext = false;
 
@@ -81,9 +86,9 @@ public class DomWorld {
         return mFrame;
     }
 
-    private JSHandle.ElementHandle geDocument() throws InterruptedException, TimeoutException {
+    private ElementHandle geDocument() throws InterruptedException, TimeoutException {
         if (Objects.nonNull(mDocument)) return mDocument;
-        JSHandle.ElementHandle document = (JSHandle.ElementHandle) getContextWaiter().get().evaluateCodeBlock4Handle("document");
+        ElementHandle document = (ElementHandle) getContextWaiter().get().evaluateCodeBlock4Handle("document");
         mDocument = document;
         return document;
     }
@@ -107,7 +112,7 @@ public class DomWorld {
         return getContextWaiter().get().evaluateCodeBlock4Value(pageFunction);
     }
 
-    public Object evaluateCodeBlock4Handle(String pageFunction) throws InterruptedException, TimeoutException {
+    public JSHandle evaluateCodeBlock4Handle(String pageFunction) throws InterruptedException, TimeoutException {
         return getContextWaiter().get().evaluateCodeBlock4Handle(pageFunction);
     }
 
@@ -134,44 +139,161 @@ public class DomWorld {
                 "}");
     }
 
+    public void setContent(String html, CommandOptions options) throws TimeoutException, InterruptedException {
+        evaluateFunction4Value("html => {\n" +
+                "    document.open();\n" +
+                "    document.write(html);\n" +
+                "    document.close();\n" +
+                "}", html);
+        LifecycleWatcher watcher = new LifecycleWatcher(mFrame, options.getWaitUntil());
+        watcher.getLifecycleWaiter().uninterruptibleGet(options.getTimeout());
+        watcher.dispose();
+    }
+
     public void hover(String selector) throws TimeoutException, InterruptedException, ElementNotFoundException {
-        JSHandle.ElementHandle elem = $(selector);
+        ElementHandle elem = $(selector);
         if (Objects.isNull(elem)) throw new ElementNotFoundException("No node found for selector: " + selector);
         elem.hover();
         elem.dispose();
     }
 
     public void click(String selector, JSONObject options) throws TimeoutException, InterruptedException, ElementNotFoundException {
-        JSHandle.ElementHandle elem = $(selector);
+        ElementHandle elem = $(selector);
         if (Objects.isNull(elem)) throw new ElementNotFoundException("No node found for selector: " + selector);
         elem.click(options);
         elem.dispose();
     }
 
     public void type(String selector, String text, JSONObject options) throws TimeoutException, InterruptedException, ElementNotFoundException {
-        JSHandle.ElementHandle elem = $(selector);
+        ElementHandle elem = $(selector);
         if (Objects.isNull(elem)) throw new ElementNotFoundException("No node found for selector: " + selector);
         elem.type(text, options);
         elem.dispose();
     }
 
     public void tap(String selector) throws TimeoutException, InterruptedException, ElementNotFoundException {
-        JSHandle.ElementHandle elem = $(selector);
+        ElementHandle elem = $(selector);
         if (Objects.isNull(elem)) throw new ElementNotFoundException("No node found for selector: " + selector);
         elem.tap();
         elem.dispose();
     }
 
     public void press(String selector, String key, JSONObject options) throws TimeoutException, InterruptedException, ElementNotFoundException {
-        JSHandle.ElementHandle elem = $(selector);
+        ElementHandle elem = $(selector);
         if (Objects.isNull(elem)) throw new ElementNotFoundException("No node found for selector: " + selector);
         elem.press(key, options);
         elem.dispose();
     }
 
-    public JSHandle.ElementHandle $(String selector) throws TimeoutException, InterruptedException {
-        JSHandle.ElementHandle document = geDocument();
+    public ElementHandle $(String selector) throws TimeoutException, InterruptedException {
+        ElementHandle document = geDocument();
         return document.$(selector);
+    }
+
+    public List<ElementHandle> $$(String selector) throws TimeoutException, InterruptedException {
+        ElementHandle document = geDocument();
+        return document.$$(selector);
+    }
+
+    public Object $eval(String selector, String pageFunction, Object... args) throws TimeoutException, InterruptedException {
+        ElementHandle document = geDocument();
+        return document.$eval(selector, pageFunction, args);
+    }
+
+    public Object $$eval(String selector, String pageFunction, Object... args) throws TimeoutException, InterruptedException {
+        ElementHandle document = geDocument();
+        return document.$$eval(selector, pageFunction, args);
+    }
+
+    public List<ElementHandle> $x(String expression) throws TimeoutException, InterruptedException {
+        ElementHandle document = geDocument();
+        return document.$x(expression);
+    }
+
+    public JSHandle addScriptTag(HtmlTag scriptTag) throws InterruptedException, TimeoutException {
+        // {url|path|content}/type
+        if (StringUtil.nonEmpty(scriptTag.getUrl())) {
+            try {
+                return getContextWaiter().get().evaluateFunction4Handle("async(url, type) => {\n" +
+                        "    const script = document.createElement('script');\n" +
+                        "    script.src = url;\n" +
+                        "    if (type)\n" +
+                        "        script.type = type;\n" +
+                        "    const promise = new Promise((res, rej) => {\n" +
+                        "        script.onload = res;\n" +
+                        "        script.onerror = rej;\n" +
+                        "    });\n" +
+                        "    document.head.appendChild(script);\n" +
+                        "    await promise;\n" +
+                        "    return script;\n" +
+                        "}", scriptTag.getUrl(), Objects.isNull(scriptTag.getType()) ? "" : scriptTag.getType());
+            } catch (Exception e) {
+                throw new JuppeteerException("Loading script from " + scriptTag.getUrl() + " failed");
+            }
+        }
+
+        if (StringUtil.nonEmpty(scriptTag.getPath())) {
+            // todo: read js from fs and inject it to browser runtime
+        }
+
+        if (StringUtil.nonEmpty(scriptTag.getContent())) {
+            return getContextWaiter().get().evaluateFunction4Handle("(content, type = 'text/javascript') => {\n" +
+                    "    const script = document.createElement('script');\n" +
+                    "    script.type = type;\n" +
+                    "    script.text = content;\n" +
+                    "    let error = null;\n" +
+                    "    script.onerror = e => error = e;\n" +
+                    "    document.head.appendChild(script);\n" +
+                    "    if (error)\n" +
+                    "        throw error;\n" +
+                    "    return script;\n" +
+                    "}", scriptTag.getContent(), Objects.isNull(scriptTag.getType()) ? "" : scriptTag.getType());
+        }
+
+        throw new InvalidParameterException("Provide an object with a `url`, `path` or `content` property");
+    }
+
+    public JSHandle addStyleTag(HtmlTag styleTag) throws InterruptedException, TimeoutException {
+        // {url|path|content}
+        if (StringUtil.nonEmpty(styleTag.getUrl())) {
+            try {
+                return getContextWaiter().get().evaluateFunction4Handle("async(url) => {\n" +
+                        "    const link = document.createElement('link');\n" +
+                        "    link.rel = 'stylesheet';\n" +
+                        "    link.href = url;\n" +
+                        "    const promise = new Promise((res, rej) => {\n" +
+                        "        link.onload = res;\n" +
+                        "        link.onerror = rej;\n" +
+                        "    });\n" +
+                        "    document.head.appendChild(link);\n" +
+                        "    await promise;\n" +
+                        "    return link;\n" +
+                        "}", styleTag.getUrl());
+            } catch (Exception e) {
+                throw new JuppeteerException("Loading style from " + styleTag.getUrl() + " failed");
+            }
+        }
+
+        if (StringUtil.nonEmpty(styleTag.getPath())) {
+            // todo: read style from fs and inject it to browser runtime
+        }
+
+        if (StringUtil.nonEmpty(styleTag.getContent())) {
+            return getContextWaiter().get().evaluateFunction4Handle("async(content) => {\n" +
+                    "    const style = document.createElement('style');\n" +
+                    "    style.type = 'text/css';\n" +
+                    "    style.appendChild(document.createTextNode(content));\n" +
+                    "    const promise = new Promise((res, rej) => {\n" +
+                    "        style.onload = res;\n" +
+                    "        style.onerror = rej;\n" +
+                    "    });\n" +
+                    "    document.head.appendChild(style);\n" +
+                    "    await promise;\n" +
+                    "    return style;\n" +
+                    "}", styleTag.getContent());
+        }
+
+        throw new InvalidParameterException("Provide an object with a `url`, `path` or `content` property");
     }
 
 

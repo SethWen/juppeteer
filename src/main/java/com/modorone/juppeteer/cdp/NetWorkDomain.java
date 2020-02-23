@@ -22,4 +22,7 @@ public interface NetWorkDomain {
     String emulateNetworkConditionsCommand = "Network.emulateNetworkConditions";
     String setUserAgentOverrideCommand = "Network.setUserAgentOverride";
     String getResponseBodyCommand = "Network.getResponseBody";
+    String getCookiesCommand = "Network.getCookies";
+    String deleteCookiesCommand = "Network.deleteCookies";
+    String setCookiesCommand = "Network.setCookies";
 }

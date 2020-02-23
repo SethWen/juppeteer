@@ -16,8 +16,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeoutException;
+import java.util.concurrent.*;
+import java.util.function.Supplier;
 
 /**
  * author: Shawn
@@ -173,6 +173,21 @@ public class FrameManager implements Frame.FrameListener {
         } finally {
             if (Objects.nonNull(watcher)) watcher.dispose();
         }
+    }
+
+    // timeout|waitUntil
+    public Response waitForFrameNavigation(Frame frame, CommandOptions options) throws InterruptedException, ExecutionException, TimeoutException {
+        if (Objects.isNull(options)) options = CommandOptions.getDefault();
+        LifecycleWatcher watcher = new LifecycleWatcher(frame, options.getWaitUntil());
+        CompletableFuture<Object> future = CompletableFuture.anyOf(
+                new ArrayList<Supplier<Boolean>>() {{
+                    add(() -> watcher.getSameDocumentNavigationWaiter().uninterruptibleGet());
+                    add(() -> watcher.getNewDocumentNavigationWaiter().uninterruptibleGet());
+                }}.stream().map(CompletableFuture::supplyAsync).toArray(CompletableFuture[]::new));
+
+        future.get(options.getTimeout(), TimeUnit.MILLISECONDS);
+        watcher.dispose();
+        return watcher.navigationResponse();
     }
 
     @Override

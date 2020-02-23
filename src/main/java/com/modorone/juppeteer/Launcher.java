@@ -79,7 +79,8 @@ public class Launcher {
                 "--metrics-recording-only --no-first-run --enable-automation",
                 "--password-store=basic --use-mock-keychain",
                 "about:blank",
-                "--remote-debugging-port=0",
+//                "--headless",
+                "--remote-debugging-port=9222",
                 "--user-data-dir=/data/debug"
         );
 //          const {
