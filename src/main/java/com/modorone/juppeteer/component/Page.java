@@ -2,7 +2,6 @@ package com.modorone.juppeteer.component;
 
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
-import com.modorone.juppeteer.Browser;
 import com.modorone.juppeteer.CommandOptions;
 import com.modorone.juppeteer.MediaType;
 import com.modorone.juppeteer.cdp.*;

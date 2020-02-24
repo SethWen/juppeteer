@@ -1,13 +1,10 @@
-package com.modorone.juppeteer;
+package com.modorone.juppeteer.component;
 
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
-import com.alibaba.fastjson.annotation.JSONField;
+import com.modorone.juppeteer.IRunner;
 import com.modorone.juppeteer.cdp.CDPSession;
 import com.modorone.juppeteer.cdp.Connection;
-import com.modorone.juppeteer.component.ExecutionContext;
-import com.modorone.juppeteer.component.Page;
-import com.modorone.juppeteer.component.Target;
 import com.modorone.juppeteer.exception.IllegalTargetException;
 import com.modorone.juppeteer.cdp.BrowserDomain;
 import com.modorone.juppeteer.cdp.TargetDomain;
@@ -15,8 +12,6 @@ import com.modorone.juppeteer.exception.JuppeteerException;
 import com.modorone.juppeteer.pojo.BrowserVersion;
 import com.modorone.juppeteer.util.StringUtil;
 import com.modorone.juppeteer.util.SystemUtil;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.concurrent.TimeoutException;

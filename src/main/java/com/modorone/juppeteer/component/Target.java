@@ -1,14 +1,11 @@
 package com.modorone.juppeteer.component;
 
-import com.modorone.juppeteer.Browser;
 import com.modorone.juppeteer.cdp.CDPSession;
 import com.modorone.juppeteer.util.BlockingCell;
 import com.modorone.juppeteer.util.StringUtil;
-import jdk.nashorn.internal.runtime.regexp.joni.constants.TargetInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
 
 /**

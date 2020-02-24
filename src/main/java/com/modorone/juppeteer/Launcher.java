@@ -1,6 +1,7 @@
 package com.modorone.juppeteer;
 
 import com.modorone.juppeteer.cdp.Connection;
+import com.modorone.juppeteer.component.Browser;
 import com.modorone.juppeteer.util.StringUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

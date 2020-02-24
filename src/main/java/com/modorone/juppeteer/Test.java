@@ -1,6 +1,7 @@
 package com.modorone.juppeteer;
 
 import com.alibaba.fastjson.JSONObject;
+import com.modorone.juppeteer.component.Browser;
 import com.modorone.juppeteer.component.Page;
 import com.modorone.juppeteer.component.network.Response;
 import com.modorone.juppeteer.pojo.Cookie;
@@ -38,7 +39,7 @@ public class Test {
 //            Browser browser = Juppeteer.getInstance().connect("ws://127.0.0.1:36393/devtools/browser/a48b33d9-6a01-4aec-92c2-d62fb0172348", new LaunchOptions());
             Page page = browser.getPages().get(0);
             page.setIgnoreHTTPSErrors(true);
-            page.navigate("https://git.xindedata.com", CommandOptions.getDefault());
+            page.navigate("https://www.baidu.com", CommandOptions.getDefault());
             System.out.println("spent: " + (System.currentTimeMillis() - start));
             SystemUtil.sleep(3000);
             browser.close();

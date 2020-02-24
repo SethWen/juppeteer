@@ -34,7 +34,7 @@ import static java.util.Locale.ENGLISH;
  */
 public class SpawnRunner implements IRunner {
 
-    private static final Logger logger = LoggerFactory.getLogger(BrowserRunner.class);
+    private static final Logger logger = LoggerFactory.getLogger(SpawnRunner.class);
     private String mExecutablePath = Constants.executablePath;
     private CompletableFuture<String> mWsEndPointFuture = new CompletableFuture<>();
     private Process mProcess;
@@ -44,6 +44,8 @@ public class SpawnRunner implements IRunner {
     }
 
     public SpawnRunner(String executablePath) {
+        if (StringUtil.isEmpty(executablePath)) throw new JuppeteerException("executable path can not be empty");
+
         mExecutablePath = executablePath;
     }
 
