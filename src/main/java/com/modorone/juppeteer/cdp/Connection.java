@@ -7,6 +7,7 @@ import com.modorone.juppeteer.component.Frame;
 import com.modorone.juppeteer.component.network.NetworkListener;
 import com.modorone.juppeteer.component.Target;
 import com.modorone.juppeteer.exception.WebSocketCreationException;
+import com.modorone.juppeteer.pojo.FrameInfo;
 import com.modorone.juppeteer.util.BlockingCell;
 import com.modorone.juppeteer.util.StringUtil;
 import com.modorone.juppeteer.util.SystemUtil;
@@ -38,6 +39,7 @@ public class Connection extends WebSocketListener {
     private WebSocket mWebSocket;
     private String mUrl;
     private boolean mIsAlive;
+    private long mDelay;
 
     private final Map<Integer, BlockingCell<String>> mContinuationMap = new HashMap<>();
     private AtomicInteger mId = new AtomicInteger(1);
@@ -48,12 +50,14 @@ public class Connection extends WebSocketListener {
     private Frame.FrameListener mFrameListener;
     private NetworkListener mNetworkListener;
 
-    public static Connection create(String url) {
-        return new Connection(url);
+
+    public static Connection create(String url, long delay) {
+        return new Connection(url, delay);
     }
 
-    private Connection(String url) {
+    private Connection(String url, long delay) {
         mUrl = url;
+        mDelay = delay;
         OkHttpClient client = new OkHttpClient.Builder()
                 .connectTimeout(5, TimeUnit.SECONDS)
                 .pingInterval(Integer.MAX_VALUE, TimeUnit.MICROSECONDS) // 禁用 ping/pong, 因为服务端未实现
@@ -209,6 +213,8 @@ public class Connection extends WebSocketListener {
     @Override
     public void onMessage(WebSocket webSocket, String text) {
         super.onMessage(webSocket, text);
+        if (mDelay > 0) SystemUtil.sleep(mDelay);
+
         logger.debug("<= RECV {}", text);
         JSONObject json = JSON.parseObject(text);
         if (StringUtil.equals(TargetDomain.attachedToTargetEvent, json.getString("method"))) {
@@ -269,7 +275,7 @@ public class Connection extends WebSocketListener {
             case PageDomain.frameNavigatedEvent:
                 mFrameListener.onFrameNavigated(json.getJSONObject("params")
                         .getJSONObject("frame")
-                        .toJavaObject(Frame.FrameInfo.class));
+                        .toJavaObject(FrameInfo.class));
                 break;
             case PageDomain.frameDetachedEvent:
                 mFrameListener.onFrameDetached(json.getJSONObject("params"));
@@ -343,8 +349,8 @@ public class Connection extends WebSocketListener {
     @Override
     public void onFailure(WebSocket webSocket, Throwable t, Response response) {
         super.onFailure(webSocket, t, response);
-//        logger.error("onFailure: ", t);
-//        mIsAlive = false;
+        logger.error("onFailure: ", t);
+        mIsAlive = false;
     }
 
     public CDPSession createSession(String targetId) {
@@ -361,10 +367,12 @@ public class Connection extends WebSocketListener {
     }
 
     public void close() {
-//        mWebSocket.close(1000, "terminate actively");
-        mWebSocket.cancel();
         mContinuationMap.clear();
         mSessions.clear();
+
+        // FIXME: 2/24/20 关闭该 socket， 但是进程仍然不结束！！！
+        mWebSocket.cancel();
+//        mWebSocket.close(1000, "terminate actively");
         mTargetListener = null;
         mFrameListener = null;
         mIsAlive = false;

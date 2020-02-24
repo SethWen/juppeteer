@@ -1,12 +1,10 @@
 package com.modorone.juppeteer;
 
 import com.alibaba.fastjson.JSONObject;
-import com.alibaba.fastjson.serializer.SerializerFeature;
 import com.modorone.juppeteer.component.Page;
 import com.modorone.juppeteer.component.network.Response;
 import com.modorone.juppeteer.pojo.Cookie;
 import com.modorone.juppeteer.pojo.HtmlTag;
-import com.modorone.juppeteer.pojo.MediaFeature;
 import com.modorone.juppeteer.pojo.Viewport;
 import com.modorone.juppeteer.util.SystemUtil;
 import org.slf4j.Logger;
@@ -36,22 +34,27 @@ public class Test {
         logger.info("main: ={}", "start...");
         try {
             long start = System.currentTimeMillis();
-            Browser browser = Juppeteer.getInstance().launch(new Options());
+            Browser browser = Juppeteer.getInstance().launch(new SpawnRunner(), LaunchOptions.getDefault());
+//            Browser browser = Juppeteer.getInstance().connect("ws://127.0.0.1:36393/devtools/browser/a48b33d9-6a01-4aec-92c2-d62fb0172348", new LaunchOptions());
             Page page = browser.getPages().get(0);
+            page.setIgnoreHTTPSErrors(true);
+            page.navigate("https://git.xindedata.com", CommandOptions.getDefault());
             System.out.println("spent: " + (System.currentTimeMillis() - start));
-            if (Objects.isNull(page)) page = browser.newPage();
-
-//            page = browser.newPage();
-
-            Response response = page.navigate("https://ip.cn",
-                    CommandOptions.getDefault()
-                            .setWaitUntil(WaitUntil.NETWORK_IDLE)
-                            .setTimeout(5000));
-
-
-            System.out.println(page.isClosed());
-
-            page.close(true);
+            SystemUtil.sleep(3000);
+            browser.close();
+//            if (Objects.isNull(page)) page = browser.newPage();
+//
+////            page = browser.newPage();
+//
+//            Response response = page.navigate("https://ip.cn",
+//                    CommandOptions.getDefault()
+//                            .setWaitUntil(WaitUntil.NETWORK_IDLE)
+//                            .setTimeout(5000));
+//
+//
+//            System.out.println(page.isClosed());
+//
+//            page.close(true);
 
 //            page.waitFor(6000);
 //            page.bringToFront();
@@ -171,7 +174,7 @@ public class Test {
         page.click("#su", null);
         SystemUtil.sleep(3000);
         page.hover("a[name='tj_settingicon']");
-        page.setViewPort(new Viewport() {{
+        page.setViewport(new Viewport() {{
             setWidth(300);
             setHeight(400);
         }});
@@ -199,9 +202,9 @@ public class Test {
         System.out.println("-----e2----->" + e2);
     }
 
-    private static void testBrowser(Browser browser) throws TimeoutException {
+    private static void testBrowser(Browser browser) throws Exception {
         System.out.println(browser.getWSEndPoint());
-        System.out.println(browser.getProcess());
+        System.out.println(browser.getRunner());
         System.out.println(browser.getTargets());
         System.out.println(browser.getTarget().getTargetInfo());
         System.out.println(browser.getVersion());

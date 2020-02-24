@@ -4,7 +4,6 @@ import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.modorone.juppeteer.Browser;
 import com.modorone.juppeteer.CommandOptions;
-import com.modorone.juppeteer.Juppeteer;
 import com.modorone.juppeteer.MediaType;
 import com.modorone.juppeteer.cdp.*;
 import com.modorone.juppeteer.component.input.Keyboard;
@@ -16,8 +15,6 @@ import com.modorone.juppeteer.exception.RequestException;
 import com.modorone.juppeteer.pojo.*;
 import com.modorone.juppeteer.util.StringUtil;
 import com.modorone.juppeteer.util.SystemUtil;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.Collections;
 import java.util.List;
@@ -35,8 +32,6 @@ import java.util.concurrent.TimeoutException;
  */
 public class Page {
 
-    private static final Logger logger = LoggerFactory.getLogger(Page.class);
-
     private CDPSession mSession;
     private Target mTarget;
     private FrameManager mFrameManager;
@@ -53,9 +48,10 @@ public class Page {
 
     private boolean mIsClosed;
 
-    public static Page create(CDPSession session, Target target) throws TimeoutException {
+    public static Page create(CDPSession session, Target target) throws Exception {
         Page page = new Page(session, target);
         page.init();
+        page.setViewport(new Viewport());
         return page;
     }
 
@@ -193,20 +189,30 @@ public class Page {
         mFrameManager.getNetworkManager().setExtraHTTPHeaders(headers);
     }
 
+    public void setIgnoreHTTPSErrors(boolean ignore) throws TimeoutException {
+        mSession.doCall(SecurityDomain.setIgnoreCertificateErrorsCommand, new JSONObject() {{
+            put("ignore", ignore);
+        }});
+    }
+
     public void setUserAgent(String userAgent) throws TimeoutException {
         mFrameManager.getNetworkManager().setUserAgent(userAgent);
     }
 
-    public void setViewPort(Viewport viewPort) throws TimeoutException, ExecutionException, InterruptedException {
-        boolean reloadNeeded = mEmulationManager.emulateViewport(viewPort);
-        mViewport = viewPort;
+    public Viewport getViewport() {
+        return mViewport;
+    }
+
+    public void setViewport(Viewport viewport) throws TimeoutException, ExecutionException, InterruptedException {
+        boolean reloadNeeded = mEmulationManager.emulateViewport(viewport);
+        mViewport = viewport;
         if (reloadNeeded) reload(null);
 
     }
 
     public void emulate(Device device) throws TimeoutException, ExecutionException, InterruptedException {
         setUserAgent(device.getUserAgent());
-        setViewPort(device.getViewport());
+        setViewport(device.getViewport());
     }
 
 
@@ -344,8 +350,8 @@ public class Page {
         return getMainFrame().waitForNavigation(options);
     }
 
-    public void waitForSelector(String selector, CommandOptions options) {
-//        return getMainFrame().waitForSelector(selector, options);
+    public ElementHandle waitForSelector(String selector, CommandOptions options) {
+        return getMainFrame().waitForSelector(selector, options);
     }
 
     public void waitForXpath(String xpath, JSONObject options) {

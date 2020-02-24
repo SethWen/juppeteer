@@ -44,7 +44,6 @@ public class Target {
     private void init() {
         // TODO: 2/16/20 涉及到 openerId，暂时没发现该字段，暂时不实现
         mIsInit = !StringUtil.equals("page", mTargetInfo.getType()) || !StringUtil.equals("", mTargetInfo.getUrl());
-        System.out.println("target is init: " + mIsInit);
         if (mIsInit) mInitWaiter.setIfUnset(true);
     }
 
@@ -52,7 +51,7 @@ public class Target {
         return mBrowser;
     }
 
-    public Page getPage() throws TimeoutException {
+    public Page getPage() throws Exception {
         Page page = null;
         if (StringUtil.equals("page", mTargetInfo.getType())
                 || StringUtil.equals("background_page", mTargetInfo.getType())) {

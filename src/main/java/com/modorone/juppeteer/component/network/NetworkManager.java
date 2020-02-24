@@ -29,7 +29,6 @@ public class NetworkManager implements NetworkListener {
 
     private CDPSession mSession;
     private FrameManager mFrameManager;
-    private boolean mIgnoreHTTPSErrors;
     /**
      * first: username, second: password
      */
@@ -46,20 +45,14 @@ public class NetworkManager implements NetworkListener {
 
     private Set<Consumer<Request>> mRequestConsumers = new HashSet<>();
 
-    public NetworkManager(CDPSession session, FrameManager frameManager, boolean ignoreHTTPSErrors) {
+    public NetworkManager(CDPSession session, FrameManager frameManager) {
         mSession = session;
         mFrameManager = frameManager;
-        mIgnoreHTTPSErrors = ignoreHTTPSErrors;
         mSession.setNetworkListener(this);
     }
 
     public void init() throws TimeoutException {
         mSession.doCall(NetWorkDomain.enableCommand);
-        if (mIgnoreHTTPSErrors) {
-            mSession.doCall(SecurityDomain.setIgnoreCertificateErrorsCommand, new JSONObject() {{
-                put("ignore", true);
-            }});
-        }
     }
 
     // FIXME: 2/17/20 浏览器中没看到该 header

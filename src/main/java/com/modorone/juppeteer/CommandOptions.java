@@ -30,6 +30,10 @@ public class CommandOptions {
      */
     private WaitUntil waitUntil = WaitUntil.LOAD;
 
+    private boolean visible;
+
+    private boolean hidden;
+
     public static CommandOptions getDefault() {
         return new CommandOptions();
     }
@@ -76,6 +80,24 @@ public class CommandOptions {
 
     public CommandOptions setWaitUntil(WaitUntil waitUntil) {
         this.waitUntil = waitUntil;
+        return this;
+    }
+
+    public boolean isVisible() {
+        return visible;
+    }
+
+    public CommandOptions setVisible(boolean visible) {
+        this.visible = visible;
+        return this;
+    }
+
+    public boolean isHidden() {
+        return hidden;
+    }
+
+    public CommandOptions setHidden(boolean hidden) {
+        this.hidden = hidden;
         return this;
     }
 }

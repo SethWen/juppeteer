@@ -38,13 +38,13 @@ public class Juppeteer {
         this.mLauncher = new Launcher(projectRoot, preferredRevision, isPuppeteerCore);
     }
 
-    public Browser launch(Options options) throws TimeoutException {
+    public Browser launch(IRunner runner, LaunchOptions options) throws Exception {
         logger.debug("launch: options={}", options);
-        return mLauncher.launch(options);
+        return mLauncher.launch(runner, options);
     }
 
-    public Browser connect(Options options) {
-        return mLauncher.connect(options);
+    public Browser connect(String wsEndPoint, LaunchOptions options) throws TimeoutException {
+        return mLauncher.connect(wsEndPoint, options);
     }
 
 
@@ -60,15 +60,11 @@ public class Juppeteer {
 //        return Errors;
 //    }
 
-    /**
-     * @param {!Launcher.ChromeArgOptions=} options
-     * @return {!Array<string>}
-     */
-    public List<String> defaultArgs(Options options) {
-        return mLauncher.defaultArgs(options);
-    }
+//    public List<String> defaultArgs(LaunchOptions options) {
+//        return mLauncher.defaultArgs(options);
+//    }
 
-    public BrowserFetcher createBrowserFetcher(Options options) {
+    public BrowserFetcher createBrowserFetcher(LaunchOptions options) {
         return new BrowserFetcher(mProjectRoot, options);
     }
 }

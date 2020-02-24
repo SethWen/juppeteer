@@ -86,11 +86,6 @@ public class BrowserRunner {
         }
     }
 
-    public Connection createConnection() {
-        logger.info("createConnection: wsEndPoint={}", mWsEndPoint);
-        return Connection.create(mWsEndPoint);
-    }
-
     public Process getProcess() {
         return mProcess;
     }

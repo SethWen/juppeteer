@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Predicate;
 
 /**
  * author: Shawn
@@ -294,6 +295,100 @@ public class DomWorld {
         }
 
         throw new InvalidParameterException("Provide an object with a `url`, `path` or `content` property");
+    }
+
+    public ElementHandle waitForSelector(String selector, CommandOptions options) {
+        return null;
+    }
+
+
+    private Predicate<Boolean> predicate = (selectorOrXPath) -> {
+//         const node = isXPath
+//                    ? document.evaluate(selectorOrXPath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue
+//                    : document.querySelector(selectorOrXPath);
+//            if (!node)
+//                return waitForHidden;
+//            if (!waitForVisible && !waitForHidden)
+//                return node;
+//      const element = /** @type {Element} */ (node.nodeType === Node.TEXT_NODE ? node.parentElement : node);
+//
+//      const style = window.getComputedStyle(element);
+//      const isVisible = style && style.visibility !== 'hidden' && hasVisibleBoundingBox();
+//      const success = (waitForVisible === isVisible || waitForHidden === !isVisible);
+//            return success ? node : null;
+//
+//            /**
+//             * @return {boolean}
+//             */
+//            function hasVisibleBoundingBox() {
+//        const rect = element.getBoundingClientRect();
+//                return !!(rect.top || rect.bottom || rect.width || rect.height);
+        return true;
+    };
+
+    /**
+     * @param {string}     selectorOrXPath
+     * @param {boolean}    isXPath
+     * @param {!{visible?: boolean, hidden?: boolean, timeout?: number}=} options
+     * @return {!Promise<?Puppeteer.ElementHandle>}
+     */
+    public ElementHandle waitForSelectorOrXPath(String selectorOrXPath, boolean isXPath, CommandOptions options) {
+        boolean waitForVisible = options.isVisible();
+        boolean waitForHidden = options.isHidden();
+        long timeout = options.getTimeout();
+        String polling = waitForVisible || waitForHidden ? "raf" : "mutation";
+        String title = (isXPath ? "XPath" : "selector") + "'" + selectorOrXPath + "'" + (waitForHidden ? "to be hidden" : "");
+//        WaitTask waitTask = new WaitTask(this, );
+
+//        Predicate<Boolean> predicate = (selectorOrXPath, isXPath waitForVisible, waitForHidden) -> {
+//            return true;
+//        }
+
+//    const {
+//            visible: waitForVisible = false,
+//                    hidden: waitForHidden = false,
+//                    timeout = this._timeoutSettings.timeout(),
+//        } = options;
+//    const polling = waitForVisible || waitForHidden ? 'raf' : 'mutation';
+//    const title = `${isXPath ? 'XPath' : 'selector'} "${selectorOrXPath}"${waitForHidden ? ' to be hidden' : ''}`;
+//    const waitTask = new WaitTask(this, predicate, title, polling, timeout, selectorOrXPath, isXPath, waitForVisible, waitForHidden);
+//    const handle = await waitTask.promise;
+//        if (!handle.asElement()) {
+//            await handle.dispose();
+//            return null;
+//        }
+//        return handle.asElement();
+//
+//        /**
+//         * @param {string} selectorOrXPath
+//         * @param {boolean} isXPath
+//         * @param {boolean} waitForVisible
+//         * @param {boolean} waitForHidden
+//         * @return {?Node|boolean}
+//         */
+//        function predicate(selectorOrXPath, isXPath, waitForVisible, waitForHidden) {
+//      const node = isXPath
+//                    ? document.evaluate(selectorOrXPath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue
+//                    : document.querySelector(selectorOrXPath);
+//            if (!node)
+//                return waitForHidden;
+//            if (!waitForVisible && !waitForHidden)
+//                return node;
+//      const element = /** @type {Element} */ (node.nodeType === Node.TEXT_NODE ? node.parentElement : node);
+//
+//      const style = window.getComputedStyle(element);
+//      const isVisible = style && style.visibility !== 'hidden' && hasVisibleBoundingBox();
+//      const success = (waitForVisible === isVisible || waitForHidden === !isVisible);
+//            return success ? node : null;
+//
+//            /**
+//             * @return {boolean}
+//             */
+//            function hasVisibleBoundingBox() {
+//        const rect = element.getBoundingClientRect();
+//                return !!(rect.top || rect.bottom || rect.width || rect.height);
+//            }
+        return null;
     }
 
 

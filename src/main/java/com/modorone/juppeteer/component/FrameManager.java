@@ -11,6 +11,7 @@ import com.modorone.juppeteer.exception.IllegalFrameException;
 import com.modorone.juppeteer.exception.RequestException;
 import com.modorone.juppeteer.cdp.PageDomain;
 import com.modorone.juppeteer.cdp.RuntimeDomain;
+import com.modorone.juppeteer.pojo.FrameInfo;
 import com.modorone.juppeteer.util.StringUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,7 +47,7 @@ public class FrameManager implements Frame.FrameListener {
     public FrameManager(CDPSession session, Page page) {
         mSession = session;
         mPage = page;
-        mNetworkManager = new NetworkManager(session, this, true); // TODO: 2/14/20 ignore https error
+        mNetworkManager = new NetworkManager(session, this); // TODO: 2/14/20 ignore https error
     }
 
     public void init() throws TimeoutException {
@@ -83,7 +84,7 @@ public class FrameManager implements Frame.FrameListener {
 
     private void handleFrameTree(JSONObject frameTree) {
 //        logger.debug("handleFrameTree: frameTree={}", frameTree);
-        Frame.FrameInfo frameInfo = frameTree.getJSONObject("frame").toJavaObject(Frame.FrameInfo.class);
+        FrameInfo frameInfo = frameTree.getJSONObject("frame").toJavaObject(FrameInfo.class);
         if (!StringUtil.isEmpty(frameInfo.getParentId())) {
             onFrameAttached(frameInfo);
         }
@@ -191,7 +192,7 @@ public class FrameManager implements Frame.FrameListener {
     }
 
     @Override
-    public void onFrameAttached(Frame.FrameInfo frameInfo) {
+    public void onFrameAttached(FrameInfo frameInfo) {
         if (Objects.nonNull(frameInfo.getId()) && mFrames.containsKey(frameInfo.getId())) return;
 
         if (StringUtil.isEmpty(frameInfo.getParentId()))
@@ -205,7 +206,7 @@ public class FrameManager implements Frame.FrameListener {
     }
 
     @Override
-    public void onFrameNavigated(Frame.FrameInfo frameInfo) {
+    public void onFrameNavigated(FrameInfo frameInfo) {
         boolean isMainFrame = StringUtil.isEmpty(frameInfo.getParentId());
         Frame frame = isMainFrame ? getMainFrame() : getFrame(frameInfo.getId());
         if (!isMainFrame && Objects.isNull(frame)) {

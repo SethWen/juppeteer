@@ -8,7 +8,7 @@ package com.modorone.juppeteer;
  */
 public class BrowserFetcher {
 
-    public BrowserFetcher(String projectRoot, Options options) {
+    public BrowserFetcher(String projectRoot, LaunchOptions options) {
 
     }
 }

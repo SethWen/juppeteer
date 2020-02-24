@@ -1,14 +1,13 @@
 package com.modorone.juppeteer.component;
 
 import com.alibaba.fastjson.JSONObject;
-import com.alibaba.fastjson.annotation.JSONField;
 import com.modorone.juppeteer.CommandOptions;
+import com.modorone.juppeteer.pojo.FrameInfo;
 import com.modorone.juppeteer.pojo.HtmlTag;
 import com.modorone.juppeteer.util.BlockingCell;
 import com.modorone.juppeteer.component.network.Response;
 import com.modorone.juppeteer.exception.RequestException;
 import com.modorone.juppeteer.util.StringUtil;
-import com.sun.org.apache.xml.internal.dtm.DTMManager;
 
 import java.util.List;
 import java.util.Objects;
@@ -149,7 +148,8 @@ public class Frame {
     public void waitForFunction(/*pageFunction, options = {}, ...args*/) {
     }
 
-    public void waitForSelector(String selector, CommandOptions options) {
+    public ElementHandle waitForSelector(String selector, CommandOptions options) {
+//        ElementHandle handle = mSecondaryWorld.wait();
 //         const handle = await this._secondaryWorld.waitForSelector(selector, options);
 //        if (!handle)
 //            return null;
@@ -158,6 +158,7 @@ public class Frame {
 //        await handle.dispose();
 //        return result;
 //        return mMainWorld.waitForSelector(selector, options);
+        return null;
     }
 
     public void waitForXPath(/*xpath, options*/) {
@@ -253,103 +254,6 @@ public class Frame {
 
     public FrameManager getFrameManager() {
         return mFrameManager;
-    }
-
-    public static class FrameInfo {
-
-        /**
-         * securityOrigin : chrome-search://most-visited
-         * loaderId : 572BDFDF2604EFE662C0BE4E4F68F496
-         * name : custom-links-edit
-         * id : 928ADFF8EE2A1010693140D686E27B6C
-         * mimeType : text/html
-         * parentId : 16EB95E8F0EE66874D98EFD7DF315C51
-         * url : chrome-search://most-visited/edit.html?addTitle=Add%20shortcut&editTitle=Edit%20shortcut&nameField=Name&urlField=URL&linkRemove=Remove&linkCancel=Cancel&linkDone=Done&invalidUrl=Type%20a%20valid%20URL
-         */
-
-        @JSONField(name = "securityOrigin")
-        private String securityOrigin;
-        @JSONField(name = "loaderId")
-        private String loaderId;
-        @JSONField(name = "name")
-        private String name;
-        @JSONField(name = "id")
-        private String id;
-        @JSONField(name = "mimeType")
-        private String mimeType;
-        @JSONField(name = "parentId")
-        private String parentId;
-        @JSONField(name = "url")
-        private String url;
-
-        public String getSecurityOrigin() {
-            return securityOrigin;
-        }
-
-        public void setSecurityOrigin(String securityOrigin) {
-            this.securityOrigin = securityOrigin;
-        }
-
-        public String getLoaderId() {
-            return loaderId;
-        }
-
-        public void setLoaderId(String loaderId) {
-            this.loaderId = loaderId;
-        }
-
-        public String getName() {
-            return name;
-        }
-
-        public void setName(String name) {
-            this.name = name;
-        }
-
-        public String getId() {
-            return id;
-        }
-
-        public void setId(String id) {
-            this.id = id;
-        }
-
-        public String getMimeType() {
-            return mimeType;
-        }
-
-        public void setMimeType(String mimeType) {
-            this.mimeType = mimeType;
-        }
-
-        public String getParentId() {
-            return parentId;
-        }
-
-        public void setParentId(String parentId) {
-            this.parentId = parentId;
-        }
-
-        public String getUrl() {
-            return url;
-        }
-
-        public void setUrl(String url) {
-            this.url = url;
-        }
-
-        @Override
-        public String toString() {
-            return "FrameInfo{" +
-                    "securityOrigin='" + securityOrigin + '\'' +
-                    ", loaderId='" + loaderId + '\'' +
-                    ", name='" + name + '\'' +
-                    ", id='" + id + '\'' +
-                    ", mimeType='" + mimeType + '\'' +
-                    ", parentId='" + parentId + '\'' +
-                    ", url='" + url + '\'' +
-                    '}';
-        }
     }
 
     public interface FrameListener {

@@ -1,13 +1,17 @@
 package com.modorone.juppeteer;
 
 import com.modorone.juppeteer.cdp.Connection;
+import com.modorone.juppeteer.util.StringUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermission;
+import java.nio.file.attribute.PosixFilePermissions;
+import java.util.*;
 import java.util.concurrent.TimeoutException;
+import java.util.stream.Collectors;
 
 /**
  * author: Shawn
@@ -22,43 +26,61 @@ public class Launcher {
     public Launcher(String projectRoot, String preferredRevision, boolean isPuppeteerCore) {
     }
 
-    public Browser launch(Options options) throws TimeoutException {
-        List<String> chromeArguments = new ArrayList<>();
+    public Browser launch(IRunner runner, LaunchOptions options) throws Exception {
+        List<String> args = new ArrayList<>();
 
-//        if (!ignoreDefaultArgs)
-//            chromeArguments.push(...this.defaultArgs(options));
-//    else if (Array.isArray(ignoreDefaultArgs))
-//            chromeArguments.push(...this.defaultArgs(options).filter(arg => ignoreDefaultArgs.indexOf(arg) === -1));
-//    else
-//        chromeArguments.push(...args);
-        if (!options.isIgnoreDefaultArgs()) {
-//            chromeArguments.add(this.defaultArgs(options));
+        if (options.isIgnoreDefaultArgs()) {
+            if (Objects.nonNull(options.getArgs())) args.addAll(options.getArgs());
+
+            String debuggingOption = args.stream().filter(arg -> StringUtil.startsWith(arg, "--remote-debugging-port=")).collect(Collectors.joining());
+            if (StringUtil.isEmpty(debuggingOption)) args.add("--remote-debugging-port=0");
         } else {
-            chromeArguments.addAll(options.getArgs());
+            args.addAll(defaultArgs());
         }
 
-        chromeArguments.add("--remote-debugging-pipe");
-        chromeArguments.add("--user-data-dir=userdata");
-        // for child process to start browser instance
+        if (Objects.nonNull(options.getWindowSize())) {
+            args.add(String.format("--window-size=%d,%d", options.getWindowSize().getFirst(), options.getWindowSize().getSecond()));
+        }
 
-        BrowserRunner browserRunner = new BrowserRunner(Constants.executablePath, defaultArgs(null));
-        browserRunner.run();
-        Connection connection = browserRunner.createConnection();
-        return Browser.create(browserRunner.getProcess(), connection);
+        if (options.isHeadless()) {
+            args.add("--headless");
+            args.add("--disable-gpu");
+            args.add("--hide-scrollbars");
+            args.add("--mute-audio");
+        }
+        if (StringUtil.nonEmpty(options.getUserDataDir())) {
+            args.add("--user-data-dir=" + options.getUserDataDir());
+        } else {
+            Path tmpPath = Files.createTempDirectory("chromium-", PosixFilePermissions.asFileAttribute(
+                    new HashSet<PosixFilePermission>() {{
+                        add(PosixFilePermission.OWNER_READ);
+                        add(PosixFilePermission.OWNER_WRITE);
+                        add(PosixFilePermission.OWNER_EXECUTE);
+                        add(PosixFilePermission.GROUP_READ);
+                    }})
+            );
+            options.setUserDataDir(tmpPath.toAbsolutePath().toString());
+            args.add("--user-data-dir=" + tmpPath.toAbsolutePath().toString());
+        }
+
+        if (options.isShowDevtools()) {
+            args.add("--auto-open-devtools-for-tabs");
+        }
+
+        String wsEndPoint = runner.run(args);
+        return Browser.create(runner, Connection.create(wsEndPoint, options.getSlowMo()));
     }
 
-    public Browser connect(Options options) {
-        String wsEndPoint = "";
-        // TODO: 2/16/20 封装一个远程 process
-        return new Browser(null, Connection.create(wsEndPoint));
+    public Browser connect(String wsEndPoint, LaunchOptions options) throws TimeoutException {
+        return Browser.create(null, Connection.create(wsEndPoint, options.getSlowMo()));
     }
 
     public String executablePath() {
         return Constants.executablePath;
     }
 
-    public List<String> defaultArgs(Options options) {
-        List<String> args = Arrays.asList(
+    public List<String> defaultArgs() {
+        return Arrays.asList(
                 "--disable-background-networking",
                 "--enable-features=NetworkService,NetworkServiceInProcess",
                 "--disable-background-timer-throttling",
@@ -78,33 +100,20 @@ public class Launcher {
                 "--disable-sync --force-color-profile=srgb",
                 "--metrics-recording-only --no-first-run --enable-automation",
                 "--password-store=basic --use-mock-keychain",
-                "about:blank",
-//                "--headless",
-                "--remote-debugging-port=9222",
-                "--user-data-dir=/data/debug"
+
+                "--enable-automation",
+                "--password-store=basic",
+                "--use-mock-keychain",
+
+                "--single-process",
+                "--no-sandbox",
+                "--no-zygote",
+                "--disable-infobars",
+                "--disk-cache-dir=/tmp/chromium-cache",
+                "--disk-cache-size=1048576",
+
+                "--remote-debugging-port=0",
+                "about:blank"
         );
-//          const {
-//            devtools = false,
-//                    headless = !devtools,
-//                    args = [],
-//            userDataDir = null
-//        } = options;
-//    const chromeArguments = [...DEFAULT_ARGS];
-//        if (userDataDir)
-//            chromeArguments.push(`--user-data-dir=${userDataDir}`);
-//        if (devtools)
-//            chromeArguments.push('--auto-open-devtools-for-tabs');
-//        if (headless) {
-//            chromeArguments.push(
-//                    '--headless',
-//                    '--hide-scrollbars',
-//                    '--mute-audio'
-//            );
-//        }
-//        if (args.every(arg => arg.startsWith('-')))
-//        chromeArguments.push('about:blank');
-//        chromeArguments.push(...args);
-//        return chromeArguments;
-        return args;
     }
 }

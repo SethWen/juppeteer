@@ -12,6 +12,7 @@ import com.modorone.juppeteer.exception.IllegalTargetException;
 import com.modorone.juppeteer.cdp.BrowserDomain;
 import com.modorone.juppeteer.cdp.TargetDomain;
 import com.modorone.juppeteer.exception.JuppeteerException;
+import com.modorone.juppeteer.pojo.BrowserVersion;
 import com.modorone.juppeteer.util.StringUtil;
 import com.modorone.juppeteer.util.SystemUtil;
 import org.slf4j.Logger;
@@ -32,8 +33,7 @@ import static com.modorone.juppeteer.Constants.INFINITY;
  */
 public class Browser {
 
-    private static final Logger logger = LoggerFactory.getLogger(Browser.class);
-    private Process mProcess;
+    private IRunner mRunner;
     private Connection mConnection;
 
     private final Set<String> mContexts = new HashSet<>();
@@ -77,32 +77,33 @@ public class Browser {
     };
 
 
-    public static Browser create(Process process, Connection connection) throws TimeoutException {
-        Browser browser = new Browser(process, connection);
+    public static Browser create(IRunner runner, Connection connection) throws TimeoutException {
+        Browser browser = new Browser(runner, connection);
         connection.doCall(TargetDomain.setDiscoverTargetsCommand, new JSONObject() {{
             put("discover", true);
         }});
         return browser;
     }
 
-    public Browser(Process process, Connection connection) {
-        mProcess = process;
+
+    public Browser(IRunner runner, Connection connection) {
+        mRunner = runner;
         mConnection = connection;
         mConnection.setTargetListener(mTargetListener);
     }
 
-    public Page newPage() throws TimeoutException {
+    public Page newPage() throws Exception {
         return newPageInContext(null);
     }
 
-    public Page newIncognitoPage() throws TimeoutException {
+    public Page newIncognitoPage() throws Exception {
         JSONObject json = mConnection.doCall(TargetDomain.createBrowserContextCommand);
         String contextId = json.getJSONObject("result").getString("browserContextId");
         mContexts.add(contextId);
         return newPageInContext(contextId);
     }
 
-    private Page newPageInContext(String contextId) throws TimeoutException {
+    private Page newPageInContext(String contextId) throws Exception {
         JSONObject json = mConnection.doCall(TargetDomain.createTargetCommand, new JSONObject() {{
             put("url", "about:blank");
             put("browserContextId", contextId);
@@ -119,8 +120,8 @@ public class Browser {
         return mConnection.getUrl();
     }
 
-    public Process getProcess() {
-        return mProcess;
+    public IRunner getRunner() {
+        return mRunner;
     }
 
     public Set<String> getContexts() {
@@ -149,7 +150,7 @@ public class Browser {
             if (Objects.nonNull(target) && StringUtil.equals("page", target.getTargetInfo().getType())) {
                 try {
                     pages.add(target.getPage());
-                } catch (TimeoutException e) {
+                } catch (Exception e) {
                     e.printStackTrace();
                 }
             }
@@ -201,86 +202,14 @@ public class Browser {
         throw new TimeoutException("timeout to wait for target");
     }
 
-    public void close() throws TimeoutException {
+    public void close() throws Exception {
         mConnection.doCall(BrowserDomain.closeCommand);
         mConnection.close();
-        mProcess.destroy();
+
+        if (Objects.nonNull(mRunner)) mRunner.terminate();
     }
 
     public boolean isAlive() {
         return mConnection.isAlive();
-    }
-
-    public static class BrowserVersion {
-
-        /**
-         * protocolVersion : 1.3
-         * product : HeadlessChrome/80.0.3987.0
-         * revision : @65d20b8e6b1e34d2687f4367477b92e89867c6f5
-         * userAgent : Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/80.0.3987.0 Safari/537.36
-         * jsVersion : 8.0.426.1
-         */
-
-        @JSONField(name = "protocolVersion")
-        private String protocolVersion;
-        @JSONField(name = "product")
-        private String product;
-        @JSONField(name = "revision")
-        private String revision;
-        @JSONField(name = "userAgent")
-        private String userAgent;
-        @JSONField(name = "jsVersion")
-        private String jsVersion;
-
-        public String getProtocolVersion() {
-            return protocolVersion;
-        }
-
-        public void setProtocolVersion(String protocolVersion) {
-            this.protocolVersion = protocolVersion;
-        }
-
-        public String getProduct() {
-            return product;
-        }
-
-        public void setProduct(String product) {
-            this.product = product;
-        }
-
-        public String getRevision() {
-            return revision;
-        }
-
-        public void setRevision(String revision) {
-            this.revision = revision;
-        }
-
-        public String getUserAgent() {
-            return userAgent;
-        }
-
-        public void setUserAgent(String userAgent) {
-            this.userAgent = userAgent;
-        }
-
-        public String getJsVersion() {
-            return jsVersion;
-        }
-
-        public void setJsVersion(String jsVersion) {
-            this.jsVersion = jsVersion;
-        }
-
-        @Override
-        public String toString() {
-            return "BrowserVersion{" +
-                    "protocolVersion='" + protocolVersion + '\'' +
-                    ", product='" + product + '\'' +
-                    ", revision='" + revision + '\'' +
-                    ", userAgent='" + userAgent + '\'' +
-                    ", jsVersion='" + jsVersion + '\'' +
-                    '}';
-        }
     }
 }
