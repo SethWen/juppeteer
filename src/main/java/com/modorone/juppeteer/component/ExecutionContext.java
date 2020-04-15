@@ -4,6 +4,7 @@ import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.modorone.juppeteer.Constants;
 import com.modorone.juppeteer.cdp.CDPSession;
+import com.modorone.juppeteer.cdp.DOMDomain;
 import com.modorone.juppeteer.exception.JSEvaluationException;
 import com.modorone.juppeteer.exception.JuppeteerException;
 import com.modorone.juppeteer.cdp.RuntimeDomain;
@@ -115,7 +116,7 @@ public class ExecutionContext {
                     put("objectId", handle.getRemoteObject().getString("objectId"));
                 }});
             } else {
-                arguments.add(new JSONObject(){{
+                arguments.add(new JSONObject() {{
                     put("value", arg);
                 }});
             }
@@ -140,5 +141,25 @@ public class ExecutionContext {
         } else {
             return JSHandle.create(this, json.getJSONObject("result"));
         }
+    }
+
+    public ElementHandle adoptElementHandle(ElementHandle elementHandle) throws TimeoutException {
+        // FIXME: 4/15/20 这句怎么加?
+//        if (elementHandle.getContext() == this) {
+//            throw new JSEvaluationException("Cannot adopt handle that already belongs to this execution context");
+//        }
+
+        if (Objects.isNull(getWorld())) {
+            throw new JSEvaluationException("Cannot adopt handle without DOMWorld");
+        }
+
+        JSONObject nodeInfo = mSession.doCall(DOMDomain.describeNodeCommand, new JSONObject() {{
+            put("objectId", elementHandle.getRemoteObject().getString("objectId"));
+        }}).getJSONObject("result");
+        JSONObject json = mSession.doCall(DOMDomain.resolveNodeCommand, new JSONObject() {{
+            put("backendNodeId", nodeInfo.getJSONObject("node").getIntValue("backendNodeId"));
+            put("executionContextId", mContextId);
+        }}).getJSONObject("result");
+        return (ElementHandle) ElementHandle.create(this, json.getJSONObject("object"));
     }
 }

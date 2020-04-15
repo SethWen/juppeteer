@@ -59,4 +59,10 @@ public class StringUtil {
         }
         return true;
     }
+
+    public static boolean contains(CharSequence src, CharSequence dest) {
+        if (Objects.isNull(src)) return false;
+
+        return src.toString().contains(dest);
+    }
 }

@@ -82,27 +82,27 @@ public class Frame {
     public void click(/*selector, options = {}*/) {
     }
 
-    public void tap(String selector) throws TimeoutException, InterruptedException {
+    public void tap(String selector) throws TimeoutException {
         mSecondaryWorld.tap(selector);
     }
 
-    public void press(String selector, String key, JSONObject options) throws TimeoutException, InterruptedException {
+    public void press(String selector, String key, JSONObject options) throws TimeoutException {
         mSecondaryWorld.press(selector, key, options);
     }
 
-    public void type(String selector, String text, JSONObject options) throws TimeoutException, InterruptedException {
+    public void type(String selector, String text, JSONObject options) throws TimeoutException {
         mMainWorld.type(selector, text, options);
     }
 
-    public void focus(/*selector*/) {
-//        return this._mainWorld.focus(selector);
-    }
-
-    public void hover(String selector) throws TimeoutException, InterruptedException {
+    public void hover(String selector) throws TimeoutException {
         mSecondaryWorld.hover(selector);
     }
 
-    public void click(String selector, JSONObject options) throws TimeoutException, InterruptedException {
+    public void focus(String selector) throws TimeoutException {
+        mSecondaryWorld.focus(selector);
+    }
+
+    public void click(String selector, JSONObject options) throws TimeoutException {
         mSecondaryWorld.click(selector, options);
     }
 
@@ -145,78 +145,81 @@ public class Frame {
     public void waitFor(/*selectorOrFunctionOrTimeout, options, ...args*/) {
     }
 
-    public void waitForFunction(/*pageFunction, options = {}, ...args*/) {
+    public JSHandle waitForFunction(String function, CommandOptions options, Object... args) throws TimeoutException {
+        return mMainWorld.waitForFunction(function, options, args);
     }
 
-    public ElementHandle waitForSelector(String selector, CommandOptions options) {
-//        ElementHandle handle = mSecondaryWorld.wait();
-//         const handle = await this._secondaryWorld.waitForSelector(selector, options);
-//        if (!handle)
-//            return null;
-//    const mainExecutionContext = await this._mainWorld.executionContext();
-//    const result = await mainExecutionContext._adoptElementHandle(handle);
-//        await handle.dispose();
-//        return result;
-//        return mMainWorld.waitForSelector(selector, options);
-        return null;
+    public ElementHandle waitForSelector(String selector, CommandOptions options) throws TimeoutException {
+        ElementHandle handle = mSecondaryWorld.waitForSelector(selector, options);
+        if (Objects.isNull(handle)) return null;
+
+        ElementHandle mainHandle = mMainWorld.waitForSelector(selector, options);
+        ExecutionContext context = getContextWaiter().uninterruptibleGet();
+        return context.adoptElementHandle(mainHandle);
     }
 
-    public void waitForXPath(/*xpath, options*/) {
+    public ElementHandle waitForXPath(String selector, CommandOptions options) throws TimeoutException {
+        ElementHandle handle = mSecondaryWorld.waitForXPath(selector, options);
+        if (Objects.isNull(handle)) return null;
+
+        ElementHandle mainHandle = mMainWorld.waitForXPath(selector, options);
+        ExecutionContext context = getContextWaiter().uninterruptibleGet();
+        return context.adoptElementHandle(mainHandle);
     }
 
-    public BlockingCell<ExecutionContext> getContentWaiter() {
+    public BlockingCell<ExecutionContext> getContextWaiter() {
         return mMainWorld.getContextWaiter();
     }
 
-    public void setContent(String html, CommandOptions options) throws TimeoutException, InterruptedException {
+    public void setContent(String html, CommandOptions options) throws TimeoutException {
         mSecondaryWorld.setContent(html, options);
     }
 
-    public Object evaluateCodeBlock4Value(String pageFunction) throws TimeoutException, InterruptedException {
-        return mMainWorld.evaluateCodeBlock4Value(pageFunction);
+    public Object evaluateCodeBlock4Value(String jsCodeBlock) throws TimeoutException {
+        return mMainWorld.evaluateCodeBlock4Value(jsCodeBlock);
     }
 
-    public Object evaluateCodeBlock4Handle(String pageFunction) throws TimeoutException, InterruptedException {
-        return mMainWorld.evaluateCodeBlock4Handle(pageFunction);
+    public JSHandle evaluateCodeBlock4Handle(String jsCodeBlock) throws TimeoutException {
+        return mMainWorld.evaluateCodeBlock4Handle(jsCodeBlock);
     }
 
-    public Object evaluateFunction4Value(String pageFunction, Object... args) throws TimeoutException, InterruptedException {
+    public Object evaluateFunction4Value(String pageFunction, Object... args) throws TimeoutException {
         return mMainWorld.evaluateFunction4Value(pageFunction, args);
     }
 
-    public Object evaluateFunction4Handle(String pageFunction, Object... args) throws TimeoutException, InterruptedException {
+    public JSHandle evaluateFunction4Handle(String pageFunction, Object... args) throws TimeoutException {
         return mMainWorld.evaluateFunction4Handle(pageFunction, args);
     }
 
-    public ElementHandle $(String selector) throws TimeoutException, InterruptedException {
+    public ElementHandle $(String selector) throws TimeoutException {
         return mMainWorld.$(selector);
     }
 
-    public List<ElementHandle> $$(String selector) throws TimeoutException, InterruptedException {
+    public List<ElementHandle> $$(String selector) throws TimeoutException {
         return mMainWorld.$$(selector);
     }
 
-    public Object $eval(String selector, String pageFunction, Object... args) throws TimeoutException, InterruptedException {
+    public Object $eval(String selector, String pageFunction, Object... args) throws TimeoutException {
         return mMainWorld.$eval(selector, pageFunction, args);
     }
 
-    public Object $$eval(String selector, String pageFunction, Object... args) throws TimeoutException, InterruptedException {
+    public Object $$eval(String selector, String pageFunction, Object... args) throws TimeoutException {
         return mMainWorld.$$eval(selector, pageFunction, args);
     }
 
-    public List<ElementHandle> $x(String expression) throws TimeoutException, InterruptedException {
+    public List<ElementHandle> $x(String expression) throws TimeoutException {
         return mMainWorld.$x(expression);
     }
 
-    public JSHandle addScriptTag(HtmlTag scriptTag) throws TimeoutException, InterruptedException {
+    public JSHandle addScriptTag(HtmlTag scriptTag) throws TimeoutException {
         return mMainWorld.addScriptTag(scriptTag);
     }
 
-    public JSHandle addStyleTag(HtmlTag styleTag) throws TimeoutException, InterruptedException {
+    public JSHandle addStyleTag(HtmlTag styleTag) throws TimeoutException {
         return mMainWorld.addStyleTag(styleTag);
     }
 
-    public String getTitle() throws TimeoutException, InterruptedException {
+    public String getTitle() throws TimeoutException {
         return mSecondaryWorld.getTitle();
     }
 
@@ -240,7 +243,7 @@ public class Frame {
         return mFrameInfo.getUrl();
     }
 
-    public String getContent() throws TimeoutException, InterruptedException {
+    public String getContent() throws TimeoutException {
         return mSecondaryWorld.getContent();
     }
 

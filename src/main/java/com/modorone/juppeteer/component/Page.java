@@ -1,5 +1,6 @@
 package com.modorone.juppeteer.component;
 
+import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.modorone.juppeteer.CommandOptions;
@@ -15,12 +16,10 @@ import com.modorone.juppeteer.pojo.*;
 import com.modorone.juppeteer.util.StringUtil;
 import com.modorone.juppeteer.util.SystemUtil;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
+import java.util.stream.Collectors;
 
 
 /**
@@ -325,20 +324,28 @@ public class Page {
         }});
     }
 
-    public Object evaluateCodeBlock4Value(String pageFunction) throws TimeoutException, InterruptedException {
-        return getMainFrame().evaluateCodeBlock4Value(pageFunction);
+    public Object evaluateCodeBlock4Value(String jsCodeBlock) throws TimeoutException, InterruptedException {
+        return getMainFrame().evaluateCodeBlock4Value(jsCodeBlock);
     }
 
-    public Object evaluateCodeBlock4Handle(String pageFunction) throws TimeoutException, InterruptedException {
-        return getMainFrame().evaluateCodeBlock4Handle(pageFunction);
+    public JSHandle evaluateCodeBlock4Handle(String jsCodeBlock) throws TimeoutException, InterruptedException {
+        return getMainFrame().evaluateCodeBlock4Handle(jsCodeBlock);
     }
 
     public Object evaluateFunction4Value(String pageFunction, Object... args) throws TimeoutException, InterruptedException {
         return getMainFrame().evaluateFunction4Value(pageFunction, args);
     }
 
-    public Object evaluateFunction4Handle(String pageFunction, Object... args) throws TimeoutException, InterruptedException {
+    public JSHandle evaluateFunction4Handle(String pageFunction, Object... args) throws TimeoutException, InterruptedException {
         return getMainFrame().evaluateFunction4Handle(pageFunction, args);
+    }
+
+    public void evaluateOnNewDocument(String jsCodeBlock, Object... args) throws TimeoutException {
+        String params = Arrays.stream(args).map(JSON::toJSONString).collect(Collectors.joining(","));
+        String source = String.format("(%s)(%s)", jsCodeBlock, params);
+        mSession.doCall(PageDomain.addScriptToEvaluateOnNewDocumentCommand, new JSONObject(){{
+            put("source", source);
+        }});
     }
 
     public void waitFor(long timeout) {
@@ -349,67 +356,90 @@ public class Page {
         return getMainFrame().waitForNavigation(options);
     }
 
-    public ElementHandle waitForSelector(String selector, CommandOptions options) {
+    public ElementHandle waitForSelector(String selector, CommandOptions options) throws TimeoutException {
         return getMainFrame().waitForSelector(selector, options);
     }
 
-    public void waitForXpath(String xpath, JSONObject options) {
-
+    public ElementHandle waitForXpath(String xpath, CommandOptions options) throws TimeoutException {
+        return getMainFrame().waitForXPath(xpath, options);
     }
 
-    public void waitForFunction(String function, JSONObject options) {
-
+    public JSHandle waitForFunction(String function, CommandOptions options, Object... args) throws TimeoutException {
+        return getMainFrame().waitForFunction(function, options, args);
     }
 
     public void waitForRequest() {
-
+// const {
+//            timeout = this._timeoutSettings.timeout(),
+//        } = options;
+//        return helper.waitForEvent(this._frameManager.networkManager(), Events.NetworkManager.Request, request => {
+//        if (helper.isString(urlOrPredicate))
+//            return (urlOrPredicate === request.url());
+//        if (typeof urlOrPredicate === 'function')
+//        return !!(urlOrPredicate(request));
+//        return false;
+//    }, timeout, this._sessionClosePromise());
     }
 
     public void waitForResponse() {
-
+//  const {
+//            timeout = this._timeoutSettings.timeout(),
+//        } = options;
+//        return helper.waitForEvent(this._frameManager.networkManager(), Events.NetworkManager.Response, response => {
+//        if (helper.isString(urlOrPredicate))
+//            return (urlOrPredicate === response.url());
+//        if (typeof urlOrPredicate === 'function')
+//        return !!(urlOrPredicate(response));
+//        return false;
+//    }, timeout, this._sessionClosePromise());
     }
 
     public void waitForFileChooser() {
 
     }
 
-    public void hover(String selector) throws TimeoutException, InterruptedException {
+    public void hover(String selector) throws TimeoutException {
         getMainFrame().hover(selector);
     }
 
-    public void click(String selector, JSONObject options) throws TimeoutException, InterruptedException {
+    public void focus(String selector) throws TimeoutException {
+        getMainFrame().focus(selector);
+    }
+
+    public void click(String selector, JSONObject options) throws TimeoutException {
         getMainFrame().click(selector, options);
     }
 
-    public void type(String selector, String text, JSONObject options) throws TimeoutException, InterruptedException {
+    public void type(String selector, String text, JSONObject options) throws TimeoutException {
         getMainFrame().type(selector, text, options);
     }
 
-    public void tap(String selector) throws TimeoutException, InterruptedException {
+    public void tap(String selector) throws TimeoutException {
         getMainFrame().tap(selector);
     }
 
-    public void press(String selector, String key, JSONObject options) throws TimeoutException, InterruptedException {
+    public void press(String selector, String key, JSONObject options) throws TimeoutException {
         getMainFrame().press(selector, key, options);
     }
 
-    public ElementHandle $(String selector) throws TimeoutException, InterruptedException {
+
+    public ElementHandle $(String selector) throws TimeoutException {
         return getMainFrame().$(selector);
     }
 
-    public List<ElementHandle> $$(String selector) throws TimeoutException, InterruptedException {
+    public List<ElementHandle> $$(String selector) throws TimeoutException {
         return getMainFrame().$$(selector);
     }
 
-    public Object $eval(String selector, String pageFunction, Object... args) throws TimeoutException, InterruptedException {
+    public Object $eval(String selector, String pageFunction, Object... args) throws TimeoutException {
         return getMainFrame().$eval(selector, pageFunction, args);
     }
 
-    public Object $$eval(String selector, String pageFunction, Object... args) throws TimeoutException, InterruptedException {
+    public Object $$eval(String selector, String pageFunction, Object... args) throws TimeoutException {
         return getMainFrame().$$eval(selector, pageFunction, args);
     }
 
-    public List<ElementHandle> $x(String expression) throws TimeoutException, InterruptedException {
+    public List<ElementHandle> $x(String expression) throws TimeoutException {
         return getMainFrame().$x(expression);
     }
 
@@ -475,11 +505,11 @@ public class Page {
         }});
     }
 
-    public JSHandle addScriptTag(HtmlTag scriptTag) throws TimeoutException, InterruptedException {
+    public JSHandle addScriptTag(HtmlTag scriptTag) throws TimeoutException {
         return getMainFrame().addScriptTag(scriptTag);
     }
 
-    public JSHandle addStyleTag(HtmlTag styleTag) throws TimeoutException, InterruptedException {
+    public JSHandle addStyleTag(HtmlTag styleTag) throws TimeoutException {
         return getMainFrame().addStyleTag(styleTag);
     }
 

@@ -24,13 +24,6 @@ import java.util.concurrent.TimeoutException;
 public class Test {
     private static final Logger logger = LoggerFactory.getLogger(Test.class);
 
-//    public static void testR(int i) {
-//        if (i < 5) {
-//            testR(++i);;
-//        System.out.println("----------------->" + i);
-//        }
-//    }
-
     public static void main(String[] args) {
         logger.info("main: ={}", "start...");
         try {
@@ -39,10 +32,34 @@ public class Test {
 //            Browser browser = Juppeteer.getInstance().connect("ws://127.0.0.1:36393/devtools/browser/a48b33d9-6a01-4aec-92c2-d62fb0172348", new LaunchOptions());
             Page page = browser.getPages().get(0);
             page.setIgnoreHTTPSErrors(true);
-            page.navigate("https://www.baidu.com", CommandOptions.getDefault());
+//            page.evaluateOnNewDocument("function start(name, i, j) {\n" +
+//                    "    setInterval(() => {\n" +
+//                    "        console.info(\"---->\", name, i + j)\n" +
+//                    "    }, 3000)\n" +
+//                    "}", "shawn", 5, 3);
+
+            Response response = page.navigate("https://www.baidu.com", CommandOptions.getDefault());
+            String text = response.getText();
             System.out.println("spent: " + (System.currentTimeMillis() - start));
-            SystemUtil.sleep(3000);
-            browser.close();
+//            ElementHandle handle1 = page.waitForSelector("#kw", CommandOptions.getDefault());
+//            ElementHandle handle2 = page.waitForXpath("//input", CommandOptions.getDefault());
+//            handle.type("nodejs", null);
+
+//            page.waitForFunction("function check() {\n" +
+//                    "    return window.shawn === true\n" +
+//                    "}", CommandOptions.getDefault().setTimeout(3000));
+
+//            page.waitFor(3000);
+//            page.evaluateOnNewDocument("((name, i, j) => {\n" +
+//                    "console.log('test evaluate....')\n" +
+//                    "    window.shawn = 'xixix'\n" +
+//                    "})()");
+            long spent = System.currentTimeMillis() - start;
+            System.out.println("");
+
+
+//            SystemUtil.sleep(3000);
+//            browser.close();
 //            if (Objects.isNull(page)) page = browser.newPage();
 //
 ////            page = browser.newPage();

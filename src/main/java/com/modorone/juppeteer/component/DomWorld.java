@@ -2,6 +2,7 @@ package com.modorone.juppeteer.component;
 
 import com.alibaba.fastjson.JSONObject;
 import com.modorone.juppeteer.CommandOptions;
+import com.modorone.juppeteer.Constants;
 import com.modorone.juppeteer.pojo.HtmlTag;
 import com.modorone.juppeteer.util.BlockingCell;
 import com.modorone.juppeteer.exception.ElementNotFoundException;
@@ -14,7 +15,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.TimeoutException;
-import java.util.function.Predicate;
 
 /**
  * author: Shawn
@@ -34,24 +34,6 @@ public class DomWorld {
     private ElementHandle mDocument;
     private BlockingCell<ExecutionContext> mContextWaiter;
     private boolean mHasContext = false;
-
-//    constructor(frameManager, frame, timeoutSettings) {
-//        this._frameManager = frameManager;
-//        this._frame = frame;
-//        this._timeoutSettings = timeoutSettings;
-//
-//        /** @type {?Promise<!Puppeteer.ElementHandle>} */
-//        this._documentPromise = null;
-//        /** @type {!Promise<!Puppeteer.ExecutionContext>} */
-//        this._contextPromise;
-//        this._contextResolveCallback = null;
-//        this._setContext(null);
-//
-//        /** @type {!Set<!WaitTask>} */
-//        this._waitTasks = new Set();
-//        this._detached = false;
-//    }
-
 
     public DomWorld(FrameManager frameManager, Frame frame, String timeoutSetting) {
         mFrameManager = frameManager;
@@ -87,11 +69,15 @@ public class DomWorld {
         return mFrame;
     }
 
-    private ElementHandle geDocument() throws InterruptedException, TimeoutException {
+    private ElementHandle geDocument() throws TimeoutException {
         if (Objects.nonNull(mDocument)) return mDocument;
-        ElementHandle document = (ElementHandle) getContextWaiter().get().evaluateCodeBlock4Handle("document");
+        ElementHandle document = (ElementHandle) getContextWaiter().uninterruptibleGet().evaluateCodeBlock4Handle("document");
         mDocument = document;
         return document;
+    }
+
+    public Set<WaitTask> getWaitTasks() {
+        return mWaitTasks;
     }
 
     public boolean hasContext() {
@@ -109,27 +95,27 @@ public class DomWorld {
 //        waitTask.terminate(new Error('waitForFunction failed: frame got detached.'));
     }
 
-    public Object evaluateCodeBlock4Value(String pageFunction) throws InterruptedException, TimeoutException {
-        return getContextWaiter().get().evaluateCodeBlock4Value(pageFunction);
+    public Object evaluateCodeBlock4Value(String jsCodeBlock) throws TimeoutException {
+        return getContextWaiter().uninterruptibleGet().evaluateCodeBlock4Value(jsCodeBlock);
     }
 
-    public JSHandle evaluateCodeBlock4Handle(String pageFunction) throws InterruptedException, TimeoutException {
-        return getContextWaiter().get().evaluateCodeBlock4Handle(pageFunction);
+    public JSHandle evaluateCodeBlock4Handle(String jsCodeBlock) throws TimeoutException {
+        return getContextWaiter().uninterruptibleGet().evaluateCodeBlock4Handle(jsCodeBlock);
     }
 
-    public Object evaluateFunction4Value(String pageFunction, Object... args) throws InterruptedException, TimeoutException {
-        return getContextWaiter().get().evaluateFunction4Value(pageFunction, args);
+    public Object evaluateFunction4Value(String pageFunction, Object... args) throws TimeoutException {
+        return getContextWaiter().uninterruptibleGet().evaluateFunction4Value(pageFunction, args);
     }
 
-    public Object evaluateFunction4Handle(String pageFunction, Object... args) throws InterruptedException, TimeoutException {
-        return getContextWaiter().get().evaluateFunction4Handle(pageFunction, args);
+    public JSHandle evaluateFunction4Handle(String pageFunction, Object... args) throws TimeoutException {
+        return getContextWaiter().uninterruptibleGet().evaluateFunction4Handle(pageFunction, args);
     }
 
-    public String getTitle() throws TimeoutException, InterruptedException {
+    public String getTitle() throws TimeoutException {
         return (String) evaluateFunction4Value("() => document.title");
     }
 
-    public String getContent() throws TimeoutException, InterruptedException {
+    public String getContent() throws TimeoutException {
         return (String) evaluateFunction4Value("() => {\n" +
                 "    let retVal = '';\n" +
                 "    if (document.doctype)\n" +
@@ -140,7 +126,7 @@ public class DomWorld {
                 "}");
     }
 
-    public void setContent(String html, CommandOptions options) throws TimeoutException, InterruptedException {
+    public void setContent(String html, CommandOptions options) throws TimeoutException {
         evaluateFunction4Value("html => {\n" +
                 "    document.open();\n" +
                 "    document.write(html);\n" +
@@ -151,71 +137,78 @@ public class DomWorld {
         watcher.dispose();
     }
 
-    public void hover(String selector) throws TimeoutException, InterruptedException, ElementNotFoundException {
+    public void hover(String selector) throws TimeoutException, ElementNotFoundException {
         ElementHandle elem = $(selector);
         if (Objects.isNull(elem)) throw new ElementNotFoundException("No node found for selector: " + selector);
         elem.hover();
         elem.dispose();
     }
 
-    public void click(String selector, JSONObject options) throws TimeoutException, InterruptedException, ElementNotFoundException {
+    public void focus(String selector) throws TimeoutException, ElementNotFoundException {
+        ElementHandle elem = $(selector);
+        if (Objects.isNull(elem)) throw new ElementNotFoundException("No node found for selector: " + selector);
+        elem.focus();
+        elem.dispose();
+    }
+
+    public void click(String selector, JSONObject options) throws TimeoutException, ElementNotFoundException {
         ElementHandle elem = $(selector);
         if (Objects.isNull(elem)) throw new ElementNotFoundException("No node found for selector: " + selector);
         elem.click(options);
         elem.dispose();
     }
 
-    public void type(String selector, String text, JSONObject options) throws TimeoutException, InterruptedException, ElementNotFoundException {
+    public void type(String selector, String text, JSONObject options) throws TimeoutException, ElementNotFoundException {
         ElementHandle elem = $(selector);
         if (Objects.isNull(elem)) throw new ElementNotFoundException("No node found for selector: " + selector);
         elem.type(text, options);
         elem.dispose();
     }
 
-    public void tap(String selector) throws TimeoutException, InterruptedException, ElementNotFoundException {
+    public void tap(String selector) throws TimeoutException, ElementNotFoundException {
         ElementHandle elem = $(selector);
         if (Objects.isNull(elem)) throw new ElementNotFoundException("No node found for selector: " + selector);
         elem.tap();
         elem.dispose();
     }
 
-    public void press(String selector, String key, JSONObject options) throws TimeoutException, InterruptedException, ElementNotFoundException {
+    public void press(String selector, String key, JSONObject options) throws TimeoutException, ElementNotFoundException {
         ElementHandle elem = $(selector);
         if (Objects.isNull(elem)) throw new ElementNotFoundException("No node found for selector: " + selector);
         elem.press(key, options);
         elem.dispose();
     }
 
-    public ElementHandle $(String selector) throws TimeoutException, InterruptedException {
+    public ElementHandle $(String selector) throws TimeoutException {
         ElementHandle document = geDocument();
         return document.$(selector);
     }
 
-    public List<ElementHandle> $$(String selector) throws TimeoutException, InterruptedException {
+    public List<ElementHandle> $$(String selector) throws TimeoutException {
         ElementHandle document = geDocument();
         return document.$$(selector);
     }
 
-    public Object $eval(String selector, String pageFunction, Object... args) throws TimeoutException, InterruptedException {
+    public Object $eval(String selector, String pageFunction, Object... args) throws TimeoutException {
         ElementHandle document = geDocument();
         return document.$eval(selector, pageFunction, args);
     }
 
-    public Object $$eval(String selector, String pageFunction, Object... args) throws TimeoutException, InterruptedException {
+    public Object $$eval(String selector, String pageFunction, Object... args) throws TimeoutException {
         ElementHandle document = geDocument();
         return document.$$eval(selector, pageFunction, args);
     }
 
-    public List<ElementHandle> $x(String expression) throws TimeoutException, InterruptedException {
+    public List<ElementHandle> $x(String expression) throws TimeoutException {
         ElementHandle document = geDocument();
         return document.$x(expression);
     }
 
-    public JSHandle addScriptTag(HtmlTag scriptTag) throws InterruptedException, TimeoutException {
+    public JSHandle addScriptTag(HtmlTag scriptTag) throws TimeoutException, JuppeteerException {
         // {url|path|content}/type
         if (StringUtil.nonEmpty(scriptTag.getUrl())) {
             try {
-                return getContextWaiter().get().evaluateFunction4Handle("async(url, type) => {\n" +
+                return getContextWaiter().uninterruptibleGet().evaluateFunction4Handle("async(url, type) => {\n" +
                         "    const script = document.createElement('script');\n" +
                         "    script.src = url;\n" +
                         "    if (type)\n" +
@@ -238,7 +231,7 @@ public class DomWorld {
         }
 
         if (StringUtil.nonEmpty(scriptTag.getContent())) {
-            return getContextWaiter().get().evaluateFunction4Handle("(content, type = 'text/javascript') => {\n" +
+            return getContextWaiter().uninterruptibleGet().evaluateFunction4Handle("(content, type = 'text/javascript') => {\n" +
                     "    const script = document.createElement('script');\n" +
                     "    script.type = type;\n" +
                     "    script.text = content;\n" +
@@ -254,11 +247,11 @@ public class DomWorld {
         throw new InvalidParameterException("Provide an object with a `url`, `path` or `content` property");
     }
 
-    public JSHandle addStyleTag(HtmlTag styleTag) throws InterruptedException, TimeoutException {
+    public JSHandle addStyleTag(HtmlTag styleTag) throws TimeoutException, JuppeteerException {
         // {url|path|content}
         if (StringUtil.nonEmpty(styleTag.getUrl())) {
             try {
-                return getContextWaiter().get().evaluateFunction4Handle("async(url) => {\n" +
+                return getContextWaiter().uninterruptibleGet().evaluateFunction4Handle("async(url) => {\n" +
                         "    const link = document.createElement('link');\n" +
                         "    link.rel = 'stylesheet';\n" +
                         "    link.href = url;\n" +
@@ -280,7 +273,7 @@ public class DomWorld {
         }
 
         if (StringUtil.nonEmpty(styleTag.getContent())) {
-            return getContextWaiter().get().evaluateFunction4Handle("async(content) => {\n" +
+            return getContextWaiter().uninterruptibleGet().evaluateFunction4Handle("async(content) => {\n" +
                     "    const style = document.createElement('style');\n" +
                     "    style.type = 'text/css';\n" +
                     "    style.appendChild(document.createTextNode(content));\n" +
@@ -297,164 +290,135 @@ public class DomWorld {
         throw new InvalidParameterException("Provide an object with a `url`, `path` or `content` property");
     }
 
-    public ElementHandle waitForSelector(String selector, CommandOptions options) {
-        return null;
+    public JSHandle waitForFunction(String function, CommandOptions options, Object... args) throws TimeoutException {
+        String polling = "raf";
+        long timeout = options.getTimeout();
+        return new WaitTask(this, function, "function", polling, timeout, args).getResult();
     }
 
+    public ElementHandle waitForSelector(String selector, CommandOptions options) throws TimeoutException {
+        return waitForSelectorOrXPath(selector, false, options);
+    }
 
-    private Predicate<Boolean> predicate = (selectorOrXPath) -> {
-//         const node = isXPath
-//                    ? document.evaluate(selectorOrXPath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue
-//                    : document.querySelector(selectorOrXPath);
-//            if (!node)
-//                return waitForHidden;
-//            if (!waitForVisible && !waitForHidden)
-//                return node;
-//      const element = /** @type {Element} */ (node.nodeType === Node.TEXT_NODE ? node.parentElement : node);
-//
-//      const style = window.getComputedStyle(element);
-//      const isVisible = style && style.visibility !== 'hidden' && hasVisibleBoundingBox();
-//      const success = (waitForVisible === isVisible || waitForHidden === !isVisible);
-//            return success ? node : null;
-//
-//            /**
-//             * @return {boolean}
-//             */
-//            function hasVisibleBoundingBox() {
-//        const rect = element.getBoundingClientRect();
-//                return !!(rect.top || rect.bottom || rect.width || rect.height);
-        return true;
-    };
+    public ElementHandle waitForXPath(String selector, CommandOptions options) throws TimeoutException {
+        return waitForSelectorOrXPath(selector, true, options);
+    }
 
-    /**
-     * @param {string}     selectorOrXPath
-     * @param {boolean}    isXPath
-     * @param {!{visible?: boolean, hidden?: boolean, timeout?: number}=} options
-     * @return {!Promise<?Puppeteer.ElementHandle>}
-     */
-    public ElementHandle waitForSelectorOrXPath(String selectorOrXPath, boolean isXPath, CommandOptions options) {
+    private ElementHandle waitForSelectorOrXPath(String selectorOrXPath, boolean isXPath, CommandOptions options) throws TimeoutException {
         boolean waitForVisible = options.isVisible();
         boolean waitForHidden = options.isHidden();
         long timeout = options.getTimeout();
         String polling = waitForVisible || waitForHidden ? "raf" : "mutation";
         String title = (isXPath ? "XPath" : "selector") + "'" + selectorOrXPath + "'" + (waitForHidden ? "to be hidden" : "");
-//        WaitTask waitTask = new WaitTask(this, );
+        String predicate = Constants.PREDICATE_FUNCTION;
+        WaitTask waitTask = new WaitTask(this, predicate, title, polling, timeout, selectorOrXPath, isXPath, waitForVisible, waitForHidden);
+        JSHandle handle = waitTask.getResult();
+        if (Objects.isNull(handle)) return null;
 
-//        Predicate<Boolean> predicate = (selectorOrXPath, isXPath waitForVisible, waitForHidden) -> {
-//            return true;
-//        }
+        if (Objects.isNull(handle.asElement())) {
+            handle.dispose();
+            return null;
+        }
 
-//    const {
-//            visible: waitForVisible = false,
-//                    hidden: waitForHidden = false,
-//                    timeout = this._timeoutSettings.timeout(),
-//        } = options;
-//    const polling = waitForVisible || waitForHidden ? 'raf' : 'mutation';
-//    const title = `${isXPath ? 'XPath' : 'selector'} "${selectorOrXPath}"${waitForHidden ? ' to be hidden' : ''}`;
-//    const waitTask = new WaitTask(this, predicate, title, polling, timeout, selectorOrXPath, isXPath, waitForVisible, waitForHidden);
-//    const handle = await waitTask.promise;
-//        if (!handle.asElement()) {
-//            await handle.dispose();
-//            return null;
-//        }
-//        return handle.asElement();
-//
-//        /**
-//         * @param {string} selectorOrXPath
-//         * @param {boolean} isXPath
-//         * @param {boolean} waitForVisible
-//         * @param {boolean} waitForHidden
-//         * @return {?Node|boolean}
-//         */
-//        function predicate(selectorOrXPath, isXPath, waitForVisible, waitForHidden) {
-//      const node = isXPath
-//                    ? document.evaluate(selectorOrXPath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue
-//                    : document.querySelector(selectorOrXPath);
-//            if (!node)
-//                return waitForHidden;
-//            if (!waitForVisible && !waitForHidden)
-//                return node;
-//      const element = /** @type {Element} */ (node.nodeType === Node.TEXT_NODE ? node.parentElement : node);
-//
-//      const style = window.getComputedStyle(element);
-//      const isVisible = style && style.visibility !== 'hidden' && hasVisibleBoundingBox();
-//      const success = (waitForVisible === isVisible || waitForHidden === !isVisible);
-//            return success ? node : null;
-//
-//            /**
-//             * @return {boolean}
-//             */
-//            function hasVisibleBoundingBox() {
-//        const rect = element.getBoundingClientRect();
-//                return !!(rect.top || rect.bottom || rect.width || rect.height);
-//            }
-        return null;
+        return (ElementHandle) handle.asElement();
     }
 
 
     private static class WaitTask {
 
-        private int mRunCount;
         private DomWorld mWorld;
+        private String mFunction;
+        private String mTitle;
+        private int mRunCount;
+        private String mPolling;
+        private long mTimeout;
+        private Object[] mArgs;
+        private BlockingCell<JSHandle> mWaiter;
+        private boolean mTerminated;
 
-        public WaitTask(DomWorld world, int timeout) {
+        public WaitTask(DomWorld world, String function, String title, String polling, long timeout, Object... args) {
             mWorld = world;
+            mFunction = "return (" + function + ")(...args)";
+            mTitle = title;
+            mPolling = polling;
+            mTimeout = timeout;
+            mArgs = args;
+            mRunCount = 0;
+            mWorld.getWaitTasks().add(this);
+            mWaiter = new BlockingCell<>();
+            rerun();
         }
 
         public void terminate() {
+            mTerminated = true;
+            mWaiter.setIfUnset(null);
+            cleanup();
+        }
 
+        private void cleanup() {
+            mWorld.getWaitTasks().remove(this);
         }
 
         public void rerun() {
             int runCount = ++mRunCount;
-            boolean success;
-            String error;
+            JSHandle success = null;
+            Exception error = null;
             try {
-                Object o = mWorld.getContextWaiter().get().evaluateCodeBlock4Handle("");
-            } catch (TimeoutException | InterruptedException e) {
-                e.printStackTrace();
+                ExecutionContext context = mWorld.getContextWaiter().get();
+                success = context.evaluateFunction4Handle(Constants.WAIT_FUNCTION, mFunction, mPolling, mTimeout, mArgs);
+            } catch (Exception e) {
+                error = e;
             }
-// const runCount = ++this._runCount;
-//            /** @type {?Puppeteer.JSHandle} */
-//            let success = null;
-//            let error = null;
-//            try {
-//                success = await (await this._domWorld.executionContext()).evaluateHandle(waitForPredicatePageFunction, this._predicateBody, this._polling, this._timeout, ...this._args);
-//            } catch (e) {
-//                error = e;
-//            }
-//
-//            if (this._terminated || runCount !== this._runCount) {
-//                if (success)
-//                    await success.dispose();
-//                return;
-//            }
-//
-//            // Ignore timeouts in pageScript - we track timeouts ourselves.
-//            // If the frame's execution context has already changed, `frame.evaluate` will
-//            // throw an error - ignore this predicate run altogether.
-//            if (!error && await this._domWorld.evaluate(s => !s, success).catch(e => true)) {
-//                await success.dispose();
-//                return;
-//            }
-//
-//            // When the page is navigated, the promise is rejected.
-//            // We will try again in the new execution context.
-//            if (error && error.message.includes('Execution context was destroyed'))
-//                return;
-//
-//            // We could have tried to evaluate in a context which was already
-//            // destroyed.
-//            if (error && error.message.includes('Cannot find context with specified id'))
-//                return;
-//
-//            if (error)
-//                this._reject(error);
-//            else
-//                this._resolve(success);
-//
-//            this._cleanup();
+
+            if (mTerminated || runCount != mRunCount) {
+                if (Objects.nonNull(success)) {
+                    success.dispose();
+                    return;
+                }
+            }
+
+            // Ignore timeouts in pageScript - we track timeouts ourselves.
+            // If the frame's execution context has already changed, `frame.evaluate` will
+            // throw an error - ignore this predicate run altogether.
+            if (Objects.isNull(error)) {
+                boolean flag;
+                try {
+                    flag = (boolean) mWorld.evaluateFunction4Value("s => !s", success);
+                } catch (Exception e) {
+                    flag = true;
+                }
+
+                if (flag) {
+                    success.dispose();
+                    return;
+                }
+            }
+
+            // When the page is navigated, the promise is rejected.
+            // We will try again in the new execution context.
+            if (Objects.nonNull(error) && StringUtil.contains(error.getMessage(), "Execution context was destroyed"))
+                return;
+
+            // We could have tried to evaluate in a context which was already
+            // destroyed.
+            if (Objects.nonNull(error) && StringUtil.contains(error.getMessage(), "Cannot find context with specified id"))
+                return;
+
+            if (Objects.nonNull(error))
+                mWaiter.setIfUnset(null);
+            else
+                mWaiter.setIfUnset(success);
+
+            cleanup();
         }
 
+        public JSHandle getResult() throws TimeoutException {
+            try {
+                return mWaiter.uninterruptibleGet(mTimeout);
+            } catch (TimeoutException e) {
+                terminate();
+                throw new TimeoutException("waiting for " + mTitle + "failed: timeout " + mTimeout + "ms exceeded");
+            }
+        }
     }
 }

@@ -6,4 +6,5 @@ public interface DOMDomain {
     String describeNodeCommand = "DOM.describeNode";
     String getContentQuadsCommand = "DOM.getContentQuads";
     String getBoxModelCommand = "DOM.getBoxModel";
+    String resolveNodeCommand = "DOM.resolveNode";
 }

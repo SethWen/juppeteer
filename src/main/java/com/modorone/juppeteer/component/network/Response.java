@@ -10,6 +10,8 @@ import com.modorone.juppeteer.util.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -113,7 +115,7 @@ public class Response {
         if (Objects.nonNull(mResponseWaiter)) mResponseWaiter.set(info);
     }
 
-    public String getBuffer() throws TimeoutException {
+    public byte[] getBytes() throws TimeoutException {
         if (Objects.nonNull(mResponseWaiter)) {
             Pair<Boolean, String> info = mResponseWaiter.uninterruptibleGet();
             // request failed
@@ -123,7 +125,12 @@ public class Response {
                 put("requestId", mRequest.getRequestId());
             }}).getJSONObject("result");
             logger.debug("getBuffer: buffer={}", response);
-            return response.toJSONString();
+            byte[] bytes = response.getString("body").getBytes(StandardCharsets.UTF_8);
+            if (response.getBooleanValue("base64Encoded")) {
+                return Base64.getDecoder().decode(bytes);
+            } else {
+                return bytes;
+            }
         }
 //        if (!this._contentPromise) {
 //            this._contentPromise = this._bodyLoadedPromise.then(async error => {
@@ -139,11 +146,7 @@ public class Response {
     }
 
     public String getText() throws TimeoutException {
-        return getBuffer();
-    }
-
-    public String getJson() throws TimeoutException {
-        return getBuffer();
+        return new String(getBytes(), StandardCharsets.UTF_8);
     }
 
     public Request getRequest() {
