@@ -2,6 +2,7 @@ package com.modorone.juppeteer.cdp;
 
 import com.alibaba.fastjson.JSONObject;
 import com.modorone.juppeteer.component.Frame;
+import com.modorone.juppeteer.component.Page;
 import com.modorone.juppeteer.component.network.NetworkListener;
 import com.modorone.juppeteer.component.network.NetworkManager;
 
@@ -36,8 +37,13 @@ public class CDPSession {
     public void setFrameListener(Frame.FrameListener listener) {
         mConnection.setFrameListener(listener);
     }
+
     public void setNetworkListener(NetworkListener listener) {
         mConnection.setNetworkListener(listener);
+    }
+
+    public void setPageListener(Page.PageListener listener) {
+        mConnection.setPageListener(listener);
     }
 
     public JSONObject doCall(String method) throws TimeoutException {

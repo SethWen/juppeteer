@@ -16,6 +16,7 @@ public interface PageDomain {
     String frameDetachedEvent = "Page.frameDetached";
     String frameStoppedLoadingEvent = "Page.frameStoppedLoading";
     String lifecycleEventEvent = "Page.lifecycleEvent";
+    String javascriptDialogOpeningEvent = "Page.javascriptDialogOpening";
 
     // command
     String setInterceptFileChooserDialogCommand = "Page.setInterceptFileChooserDialog";
@@ -34,4 +35,5 @@ public interface PageDomain {
     String closeCommand = "Page.close";
     String captureScreenshotCommand = "Page.captureScreenshot";
     String printToPDFCommand = "Page.printToPDF";
+    String handleJavaScriptDialogCommand = "Page.handleJavaScriptDialog";
 }

@@ -12,7 +12,8 @@ public interface RuntimeDomain {
     String executionContextCreatedEvent = "Runtime.executionContextCreated";
     String executionContextDestroyedEvent = "Runtime.executionContextDestroyed";
     String executionContextsClearedEvent = "Runtime.executionContextsCleared";
-    
+    String consoleAPICalledEvent = "Runtime.consoleAPICalled";
+
     // command
     String enableCommand = "Runtime.enable";
     String evaluateCommand = "Runtime.evaluate";

@@ -42,6 +42,8 @@ public class Page {
     private FrameManager mFrameManager;
     private boolean mJavascriptEnabled = true;
 
+    private Consumer<ConsoleMessage> mConsoleConsumer;
+    private Consumer<Dialog> mDialogConsumer;
     private Viewport mViewport;
     private Keyboard mKeyboard;
     private Mouse mMouse;
@@ -90,6 +92,34 @@ public class Page {
         } catch (Exception e) {
             // TODO: 2/14/20
         }
+
+        mSession.setPageListener(new PageListener() {
+            @Override
+            public void onConsoleMessage(JSONObject message) {
+                ConsoleMessage consoleMessage = new ConsoleMessage();
+                consoleMessage.setType(message.getString("type"));
+                String text = message.getJSONArray("args").stream()
+                        .map(kv -> ((JSONObject) kv).getString("value"))
+                        .collect(Collectors.joining(","));
+                consoleMessage.setText(text);
+                consoleMessage.setArgs(message.getJSONArray("args"));
+                if (Objects.nonNull(mConsoleConsumer)) {
+                    mConsoleConsumer.accept(consoleMessage);
+                }
+            }
+
+            @Override
+            public void onDialog(JSONObject dialog) {
+                Dialog dg = new Dialog();
+                dg.setSession(mSession);
+                dg.setType(dialog.getString("type"));
+                dg.setMessage(dialog.getString("message"));
+                System.out.println(dg);
+                if (Objects.nonNull(mDialogConsumer)) {
+                    mDialogConsumer.accept(dg);
+                }
+            }
+        });
     }
 
     public String getUrl() {
@@ -268,6 +298,14 @@ public class Page {
                 && result.getJSONObject("error").getString("message").contains("Invalid timezone")) {
             throw new IllegalArgumentException("Invalid timezone ID: " + timezoneId);
         }
+    }
+
+    public void setConsoleConsumer(Consumer<ConsoleMessage> consumer) {
+        mConsoleConsumer = consumer;
+    }
+
+    public void setDialogConsumer(Consumer<Dialog> consumer) {
+        mDialogConsumer = consumer;
     }
 
     public Response navigate(String url, CommandOptions options) throws RequestException {
@@ -627,5 +665,12 @@ public class Page {
             mTarget.getCloseWaiter().uninterruptibleGet();
         }
         mIsClosed = true;
+    }
+
+    public interface PageListener {
+
+        void onConsoleMessage(JSONObject message);
+
+        void onDialog(JSONObject dialog);
     }
 }

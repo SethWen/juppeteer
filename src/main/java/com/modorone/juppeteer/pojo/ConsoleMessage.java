@@ -1,5 +1,7 @@
 package com.modorone.juppeteer.pojo;
 
+import com.alibaba.fastjson.JSONArray;
+
 import java.util.Arrays;
 
 /**
@@ -12,7 +14,7 @@ public class ConsoleMessage {
 
     private String type;
     private String text;
-    private String[] args;
+    private JSONArray args;
     private String location;
 
     public String getType() {
@@ -33,11 +35,11 @@ public class ConsoleMessage {
         return this;
     }
 
-    public String[] getArgs() {
+    public JSONArray getArgs() {
         return args;
     }
 
-    public ConsoleMessage setArgs(String[] args) {
+    public ConsoleMessage setArgs(JSONArray args) {
         this.args = args;
         return this;
     }
@@ -56,7 +58,7 @@ public class ConsoleMessage {
         return "ConsoleMessage{" +
                 "type='" + type + '\'' +
                 ", text='" + text + '\'' +
-                ", args=" + Arrays.toString(args) +
+                ", args=" + args +
                 ", location='" + location + '\'' +
                 '}';
     }

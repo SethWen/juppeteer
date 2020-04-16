@@ -4,6 +4,7 @@ import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.modorone.juppeteer.component.Frame;
+import com.modorone.juppeteer.component.Page;
 import com.modorone.juppeteer.component.network.NetworkListener;
 import com.modorone.juppeteer.component.Target;
 import com.modorone.juppeteer.exception.WebSocketCreationException;
@@ -49,6 +50,7 @@ public class Connection extends WebSocketListener {
     private Target.TargetListener mTargetListener;
     private Frame.FrameListener mFrameListener;
     private NetworkListener mNetworkListener;
+    private Page.PageListener mPageListener;
 
 
     public static Connection create(String url, long delay) {
@@ -133,6 +135,10 @@ public class Connection extends WebSocketListener {
 
     public void setNetworkListener(NetworkListener listener) {
         mNetworkListener = listener;
+    }
+
+    public void setPageListener(Page.PageListener listener) {
+        mPageListener = listener;
     }
 
     public CDPSession getSession(String targetId) {
@@ -321,7 +327,12 @@ public class Connection extends WebSocketListener {
             case NetWorkDomain.loadingFailedEvent:
                 mNetworkListener.onLoadingFailed(json.getJSONObject("params"));
                 break;
-
+            case PageDomain.javascriptDialogOpeningEvent:
+                mPageListener.onDialog(json.getJSONObject("params"));
+                break;
+            case RuntimeDomain.consoleAPICalledEvent:
+                mPageListener.onConsoleMessage(json.getJSONObject("params"));
+                break;
             default:
                 break;
         }

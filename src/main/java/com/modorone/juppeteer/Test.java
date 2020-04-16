@@ -2,6 +2,7 @@ package com.modorone.juppeteer;
 
 import com.alibaba.fastjson.JSONObject;
 import com.modorone.juppeteer.component.Browser;
+import com.modorone.juppeteer.component.Dialog;
 import com.modorone.juppeteer.component.Page;
 import com.modorone.juppeteer.component.network.Response;
 import com.modorone.juppeteer.pojo.Cookie;
@@ -14,6 +15,7 @@ import org.slf4j.LoggerFactory;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Consumer;
 
 /**
  * author: Shawn
@@ -58,6 +60,14 @@ public class Test {
 //            page.waitForResponse(res -> StringUtil.contains(res.getUrl(), "sina"), CommandOptions.getDefault());
 //            String s = page.takeScreenshot("jpeg", "./", 80);
             long spent = System.currentTimeMillis() - start;
+            page.setDialogConsumer(new Consumer<Dialog>() {
+                @Override
+                public void accept(Dialog dialog) {
+//                    dialog.accept("mememe");
+                    SystemUtil.sleep(3000);
+                    dialog.dismiss();
+                }
+            });
             System.out.println("");
 
 
