@@ -26,5 +26,6 @@ public interface TargetDomain {
     String createBrowserContextCommand = "Target.createBrowserContext";
     String disposeBrowserContextCommand = "Target.disposeBrowserContext";
     String closeTargetCommand = "Target.closeTarget";
+    String activeTargetCommand = "Target.activateTarget";
 
 }

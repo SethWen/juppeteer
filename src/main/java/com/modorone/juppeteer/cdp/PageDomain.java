@@ -31,5 +31,7 @@ public interface PageDomain {
     String navigateToHistoryEntryCommand = "Page.navigateToHistoryEntry";
     String bringToFrontCommand = "Page.bringToFront";
     String setBypassCSPCommand = "Page.setBypassCSP";
-    String closeCommand = "Page.close'";
+    String closeCommand = "Page.close";
+    String captureScreenshotCommand = "Page.captureScreenshot";
+    String printToPDFCommand = "Page.printToPDF";
 }

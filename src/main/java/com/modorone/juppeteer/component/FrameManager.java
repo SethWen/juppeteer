@@ -193,6 +193,7 @@ public class FrameManager implements Frame.FrameListener {
 
     @Override
     public void onFrameAttached(FrameInfo frameInfo) {
+        if (Objects.isNull(frameInfo)) return;
         if (Objects.nonNull(frameInfo.getId()) && mFrames.containsKey(frameInfo.getId())) return;
 
         if (StringUtil.isEmpty(frameInfo.getParentId()))

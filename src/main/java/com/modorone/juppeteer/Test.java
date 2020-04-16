@@ -54,6 +54,9 @@ public class Test {
 //                    "console.log('test evaluate....')\n" +
 //                    "    window.shawn = 'xixix'\n" +
 //                    "})()");
+//            page.waitForRequest(request -> StringUtil.contains(request.getUrl(), "sina"), CommandOptions.getDefault());
+//            page.waitForResponse(res -> StringUtil.contains(res.getUrl(), "sina"), CommandOptions.getDefault());
+//            String s = page.takeScreenshot("jpeg", "./", 80);
             long spent = System.currentTimeMillis() - start;
             System.out.println("");
 

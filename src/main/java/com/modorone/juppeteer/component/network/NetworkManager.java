@@ -7,11 +7,8 @@ import com.modorone.juppeteer.component.Frame;
 import com.modorone.juppeteer.component.FrameManager;
 import com.modorone.juppeteer.cdp.FetchDomain;
 import com.modorone.juppeteer.cdp.NetWorkDomain;
-import com.modorone.juppeteer.cdp.SecurityDomain;
 import com.modorone.juppeteer.util.Pair;
 import com.modorone.juppeteer.util.StringUtil;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.concurrent.TimeoutException;
@@ -24,8 +21,6 @@ import java.util.function.Consumer;
  * update: Shawn 2/14/20 5:59 PM
  */
 public class NetworkManager implements NetworkListener {
-
-    private static final Logger logger = LoggerFactory.getLogger(NetworkManager.class);
 
     private CDPSession mSession;
     private FrameManager mFrameManager;
@@ -44,6 +39,7 @@ public class NetworkManager implements NetworkListener {
     private Set<String> mAttemptedAuthentications = new HashSet<>();
 
     private Set<Consumer<Request>> mRequestConsumers = new HashSet<>();
+    private Set<Consumer<Response>> mResponseConsumers = new HashSet<>();
 
     public NetworkManager(CDPSession session, FrameManager frameManager) {
         mSession = session;
@@ -107,6 +103,15 @@ public class NetworkManager implements NetworkListener {
 
     public boolean removeRequestConsumer(Consumer<Request> consumer) {
         if (Objects.nonNull(consumer)) return mRequestConsumers.remove(consumer);
+        return false;
+    }
+
+    public void addResponseConsumer(Consumer<Response> consumer) {
+        if (Objects.nonNull(consumer)) mResponseConsumers.add(consumer);
+    }
+
+    public boolean removeResponseConsumer(Consumer<Response> consumer) {
+        if (Objects.nonNull(consumer)) return mResponseConsumers.remove(consumer);
         return false;
     }
 
@@ -258,6 +263,8 @@ public class NetworkManager implements NetworkListener {
 
         Response response = new Response(mSession, request, event.getJSONObject("response"));
         request.setResponse(response);
+
+        mResponseConsumers.forEach(responseConsumer -> responseConsumer.accept(response));
     }
 
     @Override

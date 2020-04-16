@@ -9,16 +9,23 @@ import com.modorone.juppeteer.cdp.*;
 import com.modorone.juppeteer.component.input.Keyboard;
 import com.modorone.juppeteer.component.input.Mouse;
 import com.modorone.juppeteer.component.input.Touchscreen;
+import com.modorone.juppeteer.component.network.Request;
 import com.modorone.juppeteer.component.network.Response;
 import com.modorone.juppeteer.exception.JuppeteerException;
 import com.modorone.juppeteer.exception.RequestException;
 import com.modorone.juppeteer.pojo.*;
+import com.modorone.juppeteer.util.BlockingCell;
+import com.modorone.juppeteer.util.FileUtil;
 import com.modorone.juppeteer.util.StringUtil;
 import com.modorone.juppeteer.util.SystemUtil;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Consumer;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 
@@ -97,10 +104,6 @@ public class Page {
         return getMainFrame().getContent();
     }
 
-    /**
-     * @param {string}     html
-     * @param {!{timeout?: number, waitUntil?: string|!Array<string>}=} options
-     */
     public void setContent(String html, CommandOptions options) throws TimeoutException, InterruptedException {
         getMainFrame().setContent(html, options);
     }
@@ -256,13 +259,6 @@ public class Page {
         }});
     }
 
-    /**
-     * @param timezoneId
-     * @throws TimeoutException
-     * @throws IllegalArgumentException
-     * @link https://docs.oracle.com/middleware/1221/wcs/tag-ref/MISC/TimeZones.html
-     * @see java.util.TimeZone
-     */
     public void emulateTimezone(String timezoneId) throws TimeoutException, IllegalArgumentException {
         JSONObject result = mSession.doCall(EmulationDomain.setTimezoneOverrideCommand, new JSONObject() {{
             put("timezoneId", Objects.nonNull(timezoneId) ? timezoneId : "");
@@ -343,7 +339,7 @@ public class Page {
     public void evaluateOnNewDocument(String jsCodeBlock, Object... args) throws TimeoutException {
         String params = Arrays.stream(args).map(JSON::toJSONString).collect(Collectors.joining(","));
         String source = String.format("(%s)(%s)", jsCodeBlock, params);
-        mSession.doCall(PageDomain.addScriptToEvaluateOnNewDocumentCommand, new JSONObject(){{
+        mSession.doCall(PageDomain.addScriptToEvaluateOnNewDocumentCommand, new JSONObject() {{
             put("source", source);
         }});
     }
@@ -368,30 +364,30 @@ public class Page {
         return getMainFrame().waitForFunction(function, options, args);
     }
 
-    public void waitForRequest() {
-// const {
-//            timeout = this._timeoutSettings.timeout(),
-//        } = options;
-//        return helper.waitForEvent(this._frameManager.networkManager(), Events.NetworkManager.Request, request => {
-//        if (helper.isString(urlOrPredicate))
-//            return (urlOrPredicate === request.url());
-//        if (typeof urlOrPredicate === 'function')
-//        return !!(urlOrPredicate(request));
-//        return false;
-//    }, timeout, this._sessionClosePromise());
+    public boolean waitForRequest(Predicate<Request> predicate, CommandOptions options) throws TimeoutException {
+        BlockingCell<Boolean> waiter = new BlockingCell<>();
+        Consumer<Request> consumer = request -> {
+            if (predicate.test(request)) waiter.setIfUnset(true);
+        };
+        mFrameManager.getNetworkManager().addRequestConsumer(consumer);
+        try {
+            return waiter.uninterruptibleGet(options.getTimeout());
+        } finally {
+            mFrameManager.getNetworkManager().removeRequestConsumer(consumer);
+        }
     }
 
-    public void waitForResponse() {
-//  const {
-//            timeout = this._timeoutSettings.timeout(),
-//        } = options;
-//        return helper.waitForEvent(this._frameManager.networkManager(), Events.NetworkManager.Response, response => {
-//        if (helper.isString(urlOrPredicate))
-//            return (urlOrPredicate === response.url());
-//        if (typeof urlOrPredicate === 'function')
-//        return !!(urlOrPredicate(response));
-//        return false;
-//    }, timeout, this._sessionClosePromise());
+    public boolean waitForResponse(Predicate<Response> predicate, CommandOptions options) throws TimeoutException {
+        BlockingCell<Boolean> waiter = new BlockingCell<>();
+        Consumer<Response> consumer = response -> {
+            if (predicate.test(response)) waiter.setIfUnset(true);
+        };
+        mFrameManager.getNetworkManager().addResponseConsumer(consumer);
+        try {
+            return waiter.uninterruptibleGet(options.getTimeout());
+        } finally {
+            mFrameManager.getNetworkManager().removeResponseConsumer(consumer);
+        }
     }
 
     public void waitForFileChooser() {
@@ -513,6 +509,106 @@ public class Page {
         return getMainFrame().addStyleTag(styleTag);
     }
 
+    /**
+     * @param format  png|jpeg
+     * @param path
+     * @param quality [0, 100]
+     * @return
+     * @throws TimeoutException
+     * @throws IOException
+     */
+    public String takeScreenshot(String format, String path, int quality) throws TimeoutException, IOException {
+        if (!StringUtil.equals("png", format) && !StringUtil.equals("jpeg", format)) {
+            throw new JuppeteerException("invalid type, type should be png or jpeg");
+        }
+
+        if (quality > 100 || quality < 0) {
+            throw new JuppeteerException("invalid quality, quality should between 0 and 100");
+        }
+
+        mSession.doCall(TargetDomain.activeTargetCommand, new JSONObject() {{
+            put("targetId", mTarget.getTargetInfo().getTargetId());
+        }});
+
+        JSONObject metrics = mSession.doCall(PageDomain.getLayoutMetricsCommand).getJSONObject("result");
+        int width = (int) Math.ceil(metrics.getJSONObject("contentSize").getIntValue("width"));
+        int height = (int) Math.ceil(metrics.getJSONObject("contentSize").getIntValue("height"));
+
+        JSONObject screenOrientation = mViewport.isLandscape() ? new JSONObject() {{
+            put("angle", 90);
+            put("type", "landscapePrimary");
+        }} : new JSONObject() {{
+            put("angle", 0);
+            put("type", "portraitPrimary");
+        }};
+        mSession.doCall(EmulationDomain.setDeviceMetricsOverrideCommand, new JSONObject() {{
+            put("mobile", mViewport.isMobile());
+            put("width", width);
+            put("height", height);
+            put("deviceScaleFactor", mViewport.getDeviceScaleFactor());
+            put("screenOrientation", screenOrientation);
+        }});
+
+        JSONObject clip = new JSONObject() {{
+            put("x", 0);
+            put("y", 0);
+            put("width", width);
+            put("height", height);
+            put("scale", mViewport.getDeviceScaleFactor());
+        }};
+        JSONObject result = mSession.doCall(PageDomain.captureScreenshotCommand, new JSONObject() {{
+            put("format", format);
+            put("quality", quality);
+            put("clip", clip);
+        }}).getJSONObject("result");
+
+        byte[] bytes = Base64.getDecoder().decode(result.getString("data"));
+        if (Objects.nonNull(path)) {
+            String fileName = String.format("%d.%s", System.currentTimeMillis(), format);
+            FileUtil.writeByteArrayToFile(new File(fileName), bytes);
+        }
+        return result.getString("data");
+    }
+
+    /**
+     * 低版本 chromium 未实现改功能
+     *
+     * @param format {@link Helper#getPaperFormats}
+     * @param path
+     * @return
+     * @throws TimeoutException
+     * @throws IOException
+     */
+    public String takePDF(String format, String path) throws TimeoutException, IOException {
+        JSONObject formatJson = Helper.getPaperFormats().getJSONObject(format);
+        if (Objects.isNull(format)) {
+            throw new JuppeteerException("invalid format, see Helper#getPaperFormats");
+        }
+
+        int width = formatJson.getIntValue("width");
+        int height = formatJson.getIntValue("height");
+        JSONObject result = mSession.doCall(PageDomain.printToPDFCommand, new JSONObject() {{
+            put("transferMode", "ReturnAsBase64");
+            put("landscape", false);
+            put("displayHeaderFooter", false);
+            put("printBackground", false);
+            put("scale", 1);
+            put("paperWidth", width);
+            put("paperHeight", height);
+            put("marginTop", 0);
+            put("marginBottom", 0);
+            put("marginLeft", 0);
+            put("marginRight", 0);
+            put("preferCSSPageSize", false);
+        }}).getJSONObject("result");
+        byte[] bytes = Base64.getDecoder().decode(result.getString("data"));
+        if (Objects.nonNull(path)) {
+            String fileName = String.format("%d.pdf", System.currentTimeMillis());
+            FileUtil.writeByteArrayToFile(new File(fileName), bytes);
+        }
+        return result.getString("data");
+    }
+
     public boolean isClosed() {
         return mIsClosed;
     }
@@ -531,6 +627,5 @@ public class Page {
             mTarget.getCloseWaiter().uninterruptibleGet();
         }
         mIsClosed = true;
-        //  {"sessionId":"9B2079F6293DDD1CF9CC409C96F37EDB","method":"Page.close","params":{},"id":16}
     }
 }
