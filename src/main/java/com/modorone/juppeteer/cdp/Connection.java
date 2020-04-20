@@ -12,6 +12,7 @@ import com.modorone.juppeteer.pojo.FrameInfo;
 import com.modorone.juppeteer.util.BlockingCell;
 import com.modorone.juppeteer.util.StringUtil;
 import com.modorone.juppeteer.util.SystemUtil;
+import com.modorone.juppeteer.util.ThreadExecutor;
 import okhttp3.*;
 import okhttp3.Request;
 import okio.ByteString;
@@ -219,41 +220,43 @@ public class Connection extends WebSocketListener {
     @Override
     public void onMessage(WebSocket webSocket, String text) {
         super.onMessage(webSocket, text);
-        if (mDelay > 0) SystemUtil.sleep(mDelay);
+        ThreadExecutor.getInstance().execute(() -> {
+            if (mDelay > 0) SystemUtil.sleep(mDelay);
 
-        logger.debug("<= RECV {}", text);
-        JSONObject json = JSON.parseObject(text);
-        if (StringUtil.equals(TargetDomain.attachedToTargetEvent, json.getString("method"))) {
-            String sessionId = json.getJSONObject("params").getString("sessionId");
-            String type = json.getJSONObject("params").getJSONObject("targetInfo").getString("type");
-            CDPSession session = new CDPSession(this, sessionId, type);
-            mSessions.put(sessionId, session);
-        } else if (StringUtil.equals(TargetDomain.detachedToTargetEvent, json.getString("method"))) {
-            String sessionId = json.getJSONObject("params").getString("sessionId");
-            CDPSession session = mSessions.get(sessionId);
-            if (Objects.nonNull(session)) {
-                mSessions.remove(sessionId);
-                session.close();
-            }
-        }
-
-        if (Objects.isNull(json.getInteger("id"))) {      // event
-//            logger.debug("onMessage: event={}", text);
-            triggerListener(json);
-        } else {    // rpc reply
-//            logger.debug("onMessage: reply={}", text);
-            synchronized (mContinuationMap) {
-                Integer id = json.getInteger("id");
-                BlockingCell<String> blocker = mContinuationMap.remove(id);
-                if (Objects.isNull(blocker)) {
-                    // Entry should have been removed if request timed out,
-                    // log a warning nevertheless.
-                    logger.warn("No outstanding request for correlation ID {}", id);
-                } else {
-                    blocker.set(text);
+            logger.debug("<= RECV {}", text);
+            JSONObject json = JSON.parseObject(text);
+            if (StringUtil.equals(TargetDomain.attachedToTargetEvent, json.getString("method"))) {
+                String sessionId = json.getJSONObject("params").getString("sessionId");
+                String type = json.getJSONObject("params").getJSONObject("targetInfo").getString("type");
+                CDPSession session = new CDPSession(this, sessionId, type);
+                mSessions.put(sessionId, session);
+            } else if (StringUtil.equals(TargetDomain.detachedToTargetEvent, json.getString("method"))) {
+                String sessionId = json.getJSONObject("params").getString("sessionId");
+                CDPSession session = mSessions.get(sessionId);
+                if (Objects.nonNull(session)) {
+                    mSessions.remove(sessionId);
+                    session.close();
                 }
             }
-        }
+
+            if (Objects.isNull(json.getInteger("id"))) {      // event
+//            logger.debug("onMessage: event={}", text);
+                triggerListener(json);
+            } else {    // rpc reply
+//            logger.debug("onMessage: reply={}", text);
+                synchronized (mContinuationMap) {
+                    Integer id = json.getInteger("id");
+                    BlockingCell<String> blocker = mContinuationMap.remove(id);
+                    if (Objects.isNull(blocker)) {
+                        // Entry should have been removed if request timed out,
+                        // log a warning nevertheless.
+                        logger.warn("No outstanding request for correlation ID {}", id);
+                    } else {
+                        blocker.set(text);
+                    }
+                }
+            }
+        });
     }
 
     private void triggerListener(JSONObject json) {
@@ -306,11 +309,11 @@ public class Connection extends WebSocketListener {
                 break;
             case FetchDomain.requestPausedEvent:
                 // 递归
-//                mNetworkListener.onRequestPaused(json.getJSONObject("params"));
+                mNetworkListener.onRequestPaused(json.getJSONObject("params"));
                 break;
             case FetchDomain.authRequiredEvent:
                 // 递归
-//                mNetworkListener.onAuthRequired(json.getJSONObject("params"));
+                mNetworkListener.onAuthRequired(json.getJSONObject("params"));
                 break;
             case NetWorkDomain.requestWillBeSentEvent:
                 mNetworkListener.onRequestWillBeSent(json.getJSONObject("params"));
@@ -370,7 +373,10 @@ public class Connection extends WebSocketListener {
                 put("targetId", targetId);
                 put("flatten", true);
             }});
-            return mSessions.get(json.getJSONObject("result").getString("sessionId"));
+            String sessionId = json.getJSONObject("result").getString("sessionId");
+            logger.debug("createSession: sessionId={}", sessionId);
+            while (Objects.isNull(mSessions.get(sessionId))) ;
+            return mSessions.get(sessionId);
         } catch (Exception e) {
             logger.error("createSession: e=", e);
         }

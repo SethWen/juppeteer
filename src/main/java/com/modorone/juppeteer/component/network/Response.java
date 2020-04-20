@@ -124,7 +124,6 @@ public class Response {
             JSONObject response = mSession.doCall(NetWorkDomain.getResponseBodyCommand, new JSONObject() {{
                 put("requestId", mRequest.getRequestId());
             }}).getJSONObject("result");
-            logger.debug("getBuffer: buffer={}", response);
             byte[] bytes = response.getString("body").getBytes(StandardCharsets.UTF_8);
             if (response.getBooleanValue("base64Encoded")) {
                 return Base64.getDecoder().decode(bytes);
@@ -132,16 +131,6 @@ public class Response {
                 return bytes;
             }
         }
-//        if (!this._contentPromise) {
-//            this._contentPromise = this._bodyLoadedPromise.then(async error => {
-//            if (error)
-//                throw error;
-//        const response = await this._client.send('Network.getResponseBody', {
-//                    requestId: this._request._requestId
-//        });
-//            return Buffer.from(response.body, response.base64Encoded ? 'base64' : 'utf8');
-//      });
-//        }
         return null;
     }
 

@@ -143,12 +143,12 @@ public class NetworkManager implements NetworkListener {
     public void onRequestPaused(JSONObject event) {
         if (!mUserRequestInterceptionEnabled && mProtocolRequestInterceptionEnabled) {
             // FIXME: 2/18/20 存在递归调用，如何处理？
-//            try {
-//                mSession.doCall(FetchDomain.continueRequestCommand, new JSONObject() {{
-//                    put("requestId", event.getString("requestId"));
-//                }});
-//            } catch (Exception ignore) {
-//            }
+            try {
+                mSession.doCall(FetchDomain.continueRequestCommand, new JSONObject() {{
+                    put("requestId", event.getString("requestId"));
+                }});
+            } catch (Exception ignore) {
+            }
         }
         String requestId = event.getString("networkId");
         String interceptionId = event.getString("requestId");
@@ -191,7 +191,7 @@ public class NetworkManager implements NetworkListener {
     public void onRequestWillBeSent(JSONObject event) {
         String url = event.getJSONObject("request").getString("url");
         // Request interception doesn't happen for data URLs with Network Service.
-        if (mProtocolRequestInterceptionEnabled && StringUtil.startsWith(url, "data:")) {
+        if (mProtocolRequestInterceptionEnabled && !StringUtil.startsWith(url, "data:")) {
             String requestId = event.getString("requestId");
             String interceptionId = mRequestId2InterceptionIdMap.get(requestId);
             if (StringUtil.nonEmpty(interceptionId)) {

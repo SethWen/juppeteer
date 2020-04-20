@@ -308,6 +308,22 @@ public class Page {
         mDialogConsumer = consumer;
     }
 
+    public void addRequestInterceptor(Consumer<Request> consumer) {
+        mFrameManager.getNetworkManager().addRequestConsumer(consumer);
+    }
+
+    public boolean removeRequestInterceptor(Consumer<Request> consumer) {
+        return mFrameManager.getNetworkManager().removeRequestConsumer(consumer);
+    }
+
+    public void addResponseInterceptor(Consumer<Response> consumer) {
+        mFrameManager.getNetworkManager().removeResponseConsumer(consumer);
+    }
+
+    public boolean removeResponseInterceptor(Consumer<Response> consumer) {
+        return mFrameManager.getNetworkManager().removeResponseConsumer(consumer);
+    }
+
     public Response navigate(String url, CommandOptions options) throws RequestException {
         return mFrameManager.getMainFrame().navigate(url, options);
     }
@@ -354,7 +370,6 @@ public class Page {
             put("longitude", longitude);
             put("latitude", latitude);
             put("accuracy", accuracy);
-
         }});
     }
 

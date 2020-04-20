@@ -10,13 +10,17 @@ import com.modorone.juppeteer.cdp.BrowserDomain;
 import com.modorone.juppeteer.cdp.TargetDomain;
 import com.modorone.juppeteer.exception.JuppeteerException;
 import com.modorone.juppeteer.pojo.BrowserVersion;
+import com.modorone.juppeteer.util.BlockingCell;
 import com.modorone.juppeteer.util.StringUtil;
 import com.modorone.juppeteer.util.SystemUtil;
+import com.modorone.juppeteer.util.ThreadExecutor;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 import static com.modorone.juppeteer.Constants.INFINITY;
 
@@ -32,7 +36,7 @@ public class Browser {
     private Connection mConnection;
 
     private final Set<String> mContexts = new HashSet<>();
-    private final Map<String, Target> mTargets = new HashMap<>();
+    private final Map<String, Target> mTargets = new ConcurrentHashMap<>();
     private final Target.TargetListener mTargetListener = new Target.TargetListener() {
 
         @Override
@@ -74,9 +78,7 @@ public class Browser {
 
     public static Browser create(IRunner runner, Connection connection) throws TimeoutException {
         Browser browser = new Browser(runner, connection);
-        connection.doCall(TargetDomain.setDiscoverTargetsCommand, new JSONObject() {{
-            put("discover", true);
-        }});
+        browser.init();
         return browser;
     }
 
@@ -85,6 +87,26 @@ public class Browser {
         mRunner = runner;
         mConnection = connection;
         mConnection.setTargetListener(mTargetListener);
+    }
+
+    public void init() throws TimeoutException {
+        mConnection.doCall(TargetDomain.setDiscoverTargetsCommand, new JSONObject() {{
+            put("discover", true);
+        }});
+
+        // wait for the default tab initialized
+        BlockingCell<Boolean> waiter = new BlockingCell<>();
+        ThreadExecutor.getInstance().execute(() -> {
+            while (true) {
+                Set<String> keys = mTargets.keySet();
+                long count = keys.stream().filter(key -> (StringUtil.equals("page", mTargets.get(key).getTargetInfo().getType()))).count();
+                if (count > 0) {
+                    waiter.setIfUnset(true);
+                    return;
+                }
+            }
+        });
+        waiter.uninterruptibleGet();
     }
 
     public Page newPage() throws Exception {
@@ -104,6 +126,9 @@ public class Browser {
             put("browserContextId", contextId);
         }});
         String targetId = json.getJSONObject("result").getString("targetId");
+        while (true) { // wait target created
+            if (mTargets.containsKey(targetId)) break;
+        }
         Target target = mTargets.get(targetId);
         if (!target.getInitWaiter().uninterruptibleGet()) {
             throw new JuppeteerException("Failed to create target for page");
@@ -140,17 +165,17 @@ public class Browser {
     }
 
     public List<Page> getPages() {
-        List<Page> pages = new ArrayList<>();
-        mTargets.forEach((targetId, target) -> {
-            if (Objects.nonNull(target) && StringUtil.equals("page", target.getTargetInfo().getType())) {
-                try {
-                    pages.add(target.getPage());
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            }
-        });
-        return pages;
+        return mTargets.keySet().stream()
+                .filter(key -> (StringUtil.equals("page", mTargets.get(key).getTargetInfo().getType())))
+                .map(key -> {
+                    try {
+                        return mTargets.get(key).getPage();
+                    } catch (Exception ignore) {
+                    }
+                    return null;
+                })
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
     }
 
     public boolean disposeContext(String contextId) throws TimeoutException {

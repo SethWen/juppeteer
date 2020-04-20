@@ -4,17 +4,21 @@ import com.alibaba.fastjson.JSONObject;
 import com.modorone.juppeteer.component.Browser;
 import com.modorone.juppeteer.component.Dialog;
 import com.modorone.juppeteer.component.Page;
+import com.modorone.juppeteer.component.network.Request;
+import com.modorone.juppeteer.component.network.RequestOption;
 import com.modorone.juppeteer.component.network.Response;
 import com.modorone.juppeteer.pojo.Cookie;
 import com.modorone.juppeteer.pojo.HtmlTag;
 import com.modorone.juppeteer.pojo.Viewport;
 import com.modorone.juppeteer.util.SystemUtil;
+import com.modorone.juppeteer.util.ThreadExecutor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
 /**
@@ -27,21 +31,36 @@ public class Test {
     private static final Logger logger = LoggerFactory.getLogger(Test.class);
 
     public static void main(String[] args) {
-        logger.info("main: ={}", "start...");
         try {
+        logger.info("main: ={}", "start...");
             long start = System.currentTimeMillis();
             Browser browser = Juppeteer.getInstance().launch(new SpawnRunner(), LaunchOptions.getDefault());
 //            Browser browser = Juppeteer.getInstance().connect("ws://127.0.0.1:36393/devtools/browser/a48b33d9-6a01-4aec-92c2-d62fb0172348", new LaunchOptions());
+//            SystemUtil.sleep(1000);
             Page page = browser.getPages().get(0);
-            page.setIgnoreHTTPSErrors(true);
-//            page.evaluateOnNewDocument("function start(name, i, j) {\n" +
-//                    "    setInterval(() => {\n" +
-//                    "        console.info(\"---->\", name, i + j)\n" +
-//                    "    }, 3000)\n" +
-//                    "}", "shawn", 5, 3);
+//            SystemUtil.sleep(1000);
+//            page.setIgnoreHTTPSErrors(true);
+            page.evaluateOnNewDocument("function start(name, i, j) {\n" +
+                    "    setInterval(() => {\n" +
+                    "        console.info(\"---->\", name, i + j)\n" +
+                    "    }, 3000)\n" +
+                    "}", "shawn", 5, 3);
+
+            AtomicInteger atomicInteger = new AtomicInteger();
+            page.setRequestInterception(true);
+            page.addRequestInterceptor(new Consumer<Request>() {
+                @Override
+                public void accept(Request request) {
+                    try {
+                        System.out.println(Thread.currentThread().getName() + "<<wait..." + atomicInteger.incrementAndGet());
+                        request.proceed(RequestOption.newBuilder().build());
+                    } catch (TimeoutException e) {
+                        e.printStackTrace();
+                    }
+                }
+            });
 
             Response response = page.navigate("https://www.baidu.com", CommandOptions.getDefault());
-            String text = response.getText();
             System.out.println("spent: " + (System.currentTimeMillis() - start));
 //            ElementHandle handle1 = page.waitForSelector("#kw", CommandOptions.getDefault());
 //            ElementHandle handle2 = page.waitForXpath("//input", CommandOptions.getDefault());
@@ -59,15 +78,14 @@ public class Test {
 //            page.waitForRequest(request -> StringUtil.contains(request.getUrl(), "sina"), CommandOptions.getDefault());
 //            page.waitForResponse(res -> StringUtil.contains(res.getUrl(), "sina"), CommandOptions.getDefault());
 //            String s = page.takeScreenshot("jpeg", "./", 80);
-            long spent = System.currentTimeMillis() - start;
-            page.setDialogConsumer(new Consumer<Dialog>() {
-                @Override
-                public void accept(Dialog dialog) {
-//                    dialog.accept("mememe");
-                    SystemUtil.sleep(3000);
-                    dialog.dismiss();
-                }
-            });
+//            page.setDialogConsumer(new Consumer<Dialog>() {
+//                @Override
+//                public void accept(Dialog dialog) {
+////                    dialog.accept("mememe");
+//                    SystemUtil.sleep(3000);
+//                    dialog.dismiss();
+//                }
+//            });
             System.out.println("");
 
 
