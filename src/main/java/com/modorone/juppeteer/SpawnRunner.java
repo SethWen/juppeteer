@@ -68,7 +68,6 @@ public class SpawnRunner implements IRunner {
                 Scanner scanner = new Scanner(mProcess.getErrorStream());
                 while (scanner.hasNext()) {
                     String line = scanner.nextLine().trim();
-//                    System.out.println("line: " + line);
                     if (line.isEmpty()) continue;
 
                     if (line.toLowerCase(ENGLISH).startsWith("devtools listening on")) {

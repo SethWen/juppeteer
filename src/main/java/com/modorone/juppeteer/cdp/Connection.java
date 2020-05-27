@@ -220,7 +220,7 @@ public class Connection extends WebSocketListener {
     @Override
     public void onMessage(WebSocket webSocket, String text) {
         super.onMessage(webSocket, text);
-        ThreadExecutor.getInstance().execute(() -> {
+//        ThreadExecutor.getInstance().execute(() -> {
             if (mDelay > 0) SystemUtil.sleep(mDelay);
 
             logger.debug("<= RECV {}", text);
@@ -256,7 +256,7 @@ public class Connection extends WebSocketListener {
                     }
                 }
             }
-        });
+//        });
     }
 
     private void triggerListener(JSONObject json) {

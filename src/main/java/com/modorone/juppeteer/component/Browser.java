@@ -224,9 +224,8 @@ public class Browser {
 
     public void close() throws Exception {
         mConnection.doCall(BrowserDomain.closeCommand);
-        mConnection.close();
-
         if (Objects.nonNull(mRunner)) mRunner.terminate();
+        mConnection.close();
     }
 
     public boolean isAlive() {

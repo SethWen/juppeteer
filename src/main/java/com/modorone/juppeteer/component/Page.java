@@ -389,9 +389,9 @@ public class Page {
         return getMainFrame().evaluateFunction4Handle(pageFunction, args);
     }
 
-    public void evaluateOnNewDocument(String jsCodeBlock, Object... args) throws TimeoutException {
+    public void evaluateOnNewDocument(String jsFn, Object... args) throws TimeoutException {
         String params = Arrays.stream(args).map(JSON::toJSONString).collect(Collectors.joining(","));
-        String source = String.format("(%s)(%s)", jsCodeBlock, params);
+        String source = String.format("(%s)(%s)", jsFn, params);
         mSession.doCall(PageDomain.addScriptToEvaluateOnNewDocumentCommand, new JSONObject() {{
             put("source", source);
         }});
